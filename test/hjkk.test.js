@@ -1,7 +1,7 @@
-const { getConfig, getCards, getTracks, getPlayinfo, search } = require('../js/4kav')
+const { getConfig, getCards, getTracks, getPlayinfo, search } = require('../js/hjkk')
 jest.setTimeout(30000)
 
-describe('4kav測試', () => {
+describe('韓劇看看測試', () => {
     test('get config', () => {
         const appConfig = getConfig()
         expect(appConfig).toBeDefined()
@@ -15,7 +15,7 @@ describe('4kav測試', () => {
     test('get cards', async () => {
         const ext = {
             id: 1,
-            url: 'https://4k-av.com/movie',
+            url: 'https://www.hanjukankan.com/xvs@id@xatxbtxctxdtxetxftxgtxht@page@atbtct.html',
             page: 1,
         }
         const cards = await getCards(ext)
@@ -26,7 +26,7 @@ describe('4kav測試', () => {
 
     test('get tracks', async () => {
         const ext = {
-            url: 'https://4k-av.com/tv/105883-fox-spirit-matchmaker-red-moon-pact-ep01/',
+            url: 'https://www.hanjukankan.com/xvd1031.html',
         }
         const tracks = await getTracks(ext)
         expect(tracks).toBeDefined()
@@ -37,7 +37,7 @@ describe('4kav測試', () => {
 
     test('get play info', async () => {
         const ext = {
-            url: 'https://4k-av.com/tv/105883-fox-spirit-matchmaker-red-moon-pact-ep01',
+            url: 'https://www.hanjukankan.com/xvp1031xv1xvv1.html',
         }
         const urls = await getPlayinfo(ext)
         expect(urls).toBeDefined()

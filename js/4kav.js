@@ -2,8 +2,6 @@ const cheerio = require('cheerio')
 const fs = require('fs')
 const os = require('os')
 const axios = require('axios')
-const CryptoJS = require('crypto-js')
-// const _ = require('lodash')
 
 // 測試時忽略證書驗證
 // process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
@@ -180,7 +178,7 @@ async function getPlayinfo(ext) {
 
     const $ = cheerio.load(data)
     let playUrl = $('#MainContent_videowindow video source').attr('src')
-    console.log(playUrl)
+    // console.log(playUrl)
 
     return { urls: [playUrl] }
 }
