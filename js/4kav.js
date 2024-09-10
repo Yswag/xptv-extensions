@@ -189,8 +189,36 @@ async function search(ext) {
     let cards = []
 
     let text = ext.text // 搜索文本
-    let page = ext.page || 1
+    // 應該不需要翻頁吧
+    // let page = ext.page || 1
     let url = appConfig.site + `/s?q=${text}`
+
+    const { data } = await axios.get(url, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
+
+    const $ = cheerio.load(data)
+
+    $('#MainContent_newestlist .virow').each((_, element) => {
+        let item = $(element).find('.NTMitem')
+        item.each((_, element) => {
+            const href = $(element).find('.title a').attr('href')
+            const title = $(element).find('.title h2').text()
+            const cover = $(element).find('.poster img').attr('src')
+            const subTitle = $(element).find('label[title=分辨率]').text().split('/')[0]
+            cards.push({
+                vod_id: href,
+                vod_name: title,
+                vod_pic: cover,
+                vod_remarks: subTitle,
+                ext: {
+                    url: `${appConfig.site}${href}`,
+                },
+            })
+        })
+    })
 
     return {
         list: cards,
