@@ -1,8 +1,8 @@
 const { getConfig, getCards, getTracks, getPlayinfo, search } = require('../js/4kav')
 
 ;(async () => {
-    let appConfig = getConfig()
-    console.log(appConfig)
+    // let appConfig = getConfig()
+    // console.log(appConfig)
 
     let ext = {
         id: 1,
@@ -28,5 +28,5 @@ const { getConfig, getCards, getTracks, getPlayinfo, search } = require('../js/4
         text: '我',
     }
     let searchResult = await search(ext)
-    console.log(searchResult)
+    console.log(JSON.stringify(searchResult, null, 2))
 })()

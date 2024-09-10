@@ -210,7 +210,7 @@ async function search(ext) {
             const subTitle = $(element).find('label[title=分辨率]').text().split('/')[0]
             cards.push({
                 vod_id: href,
-                vod_name: title,
+                vod_name: title.split('/')[0].trim(),
                 vod_pic: cover,
                 vod_remarks: subTitle,
                 ext: {
