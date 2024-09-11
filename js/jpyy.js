@@ -100,7 +100,7 @@ async function getTracks(ext) {
     //     }
     // }
     // let vodJson = json[3].data.data
-    s
+
     let playlist = $('div[class^="detail__PlayListBox"]').find('div.listitem a')
     playlist.each((_, e) => {
         const name = $(e).text()
