@@ -1,46 +1,46 @@
 {
     "sites": [
         {
-            "key": "csp_4kav",
             "name": "4k-av",
             "type": 3,
             "api": "csp_4kav",
             "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/4kav.js"
         },
         {
-            "key": "csp_hjkk",
             "name": "韓劇看看",
             "type": 3,
             "api": "csp_hjkk",
             "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/hjkk.js"
         },
         {
-            "key": "csp_jpyy",
             "name": "金牌影院",
             "type": 3,
             "api": "csp_jpyy",
             "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/jpyy.js"
         },
         {
-            "key": "csp_saohuo",
             "name": "燒火電影",
             "type": 3,
             "api": "csp_saohuo",
             "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/saohuo.js"
         },
         {
-            "key": "csp_subaibai",
             "name": "素白白影視",
             "type": 3,
             "api": "csp_subaibai",
             "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/subaibai.js"
         },
         {
-            "key": "csp_bttwo",
             "name": "兩個BT",
             "type": 3,
             "api": "csp_bttwo",
             "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/bttwo.js"
+        },
+        {
+            "name": "NO視頻",
+            "type": 3,
+            "api": "csp_novipnoad",
+            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/novipnoad.js"
         }
     ]
 }
