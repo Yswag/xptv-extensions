@@ -1,8 +1,9 @@
 const cheerio = require('cheerio')
 const axios = require('axios')
+const CryptoJS = require('crypto-js')
 
 // 測試時忽略證書驗證
-// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
@@ -10,67 +11,54 @@ let appConfig = {
     ver: 1,
     title: '兩個BT',
     site: 'https://www.bttwo.me',
-    tabs: [
-        {
-            name: '韓劇',
-            ext: {
-                id: 1,
-                url: 'https://www.hanjukankan.com/xvs@id@xatxbtxctxdtxetxftxgtxht@page@atbtct.html',
-            },
-        },
-        {
-            name: '韓影',
-            ext: {
-                id: 2,
-                url: 'https://www.hanjukankan.com/xvs@id@xatxbtxctxdtxetxftxgtxht@page@atbtct.html',
-            },
-        },
-        {
-            name: '韓綜',
-            ext: {
-                id: 3,
-                url: 'https://www.hanjukankan.com/xvs@id@xatxbtxctxdtxetxftxgtxht@page@atbtct.html',
-            },
-        },
-    ],
 }
 
-function getConfig() {
-    return appConfig
+async function getConfig() {
+    let config = appConfig
+    config.tabs = await getTabs()
+    return config
 }
 
-// async function getTabs() {
-//     let url = appConfig.site
-//     let tabs = []
+async function getTabs() {
+    let list = []
+    let ignore = ['首页', '热门下载', '公告求片']
+    function isIgnoreClassName(className) {
+        return ignore.some((element) => className.includes(element))
+    }
 
-//     const { data } = await axios.get(url, {
-//         headers: {
-//             'User-Agent': UA,
-//         },
-//     })
+    const { data } = await axios.get(appConfig.site, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
+    const $ = cheerio.load(data)
 
-//     const $ = cheerio.load(data)
+    let allClass = $('ul.navlist a')
+    allClass.each((i, e) => {
+        const name = $(e).text()
+        const href = $(e).attr('href')
+        const isIgnore = isIgnoreClassName(name)
+        if (isIgnore) return
 
-//     $('.sidebar .navbar-items li[role=group]').each((i, e) => {
-//         const name = $(e).find('a').attr('title')
-//         const href = $(e).find('a').attr('href')
-//         tabs.push({
-//             name,
-//             ext: {
-//                 id: i,
-//                 url: `${appConfig.site}${href}`,
-//             },
-//         })
-//     })
+        list.push({
+            name,
+            ext: {
+                id: i.toString(),
+                url: appConfig.site + href,
+            },
+        })
+    })
 
-//     return tabs
-// }
+    return list
+}
 
 async function getCards(ext) {
     let cards = []
-    let { id, page = 1, url } = ext
+    let { page = 1, url } = ext
 
-    url = url.replace('@id@', id).replace('@page@', page)
+    if (page > 1) {
+        url += `/page/${page}`
+    }
 
     // 发送请求
     const { data } = await axios.get(url, {
@@ -83,18 +71,20 @@ async function getCards(ext) {
     const $ = cheerio.load(data)
 
     // 解析数据，例如提取标题
-    $('.module-poster-item').each((_, element) => {
-        const href = $(element).attr('href')
-        const title = $(element).attr('title')
-        const cover = $(element).find('.module-item-pic img').attr('data-original')
-        const subTitle = $(element).find('.module-item-note').text()
+    $('div.bt_img > ul li').each((_, element) => {
+        const href = $(element).find('a').attr('href')
+        const title = $(element).find('img.thumb').attr('alt')
+        const cover = $(element).find('img.thumb').attr('data-original')
+        const subTitle = $(element).find('.jidi span').text()
+        const hdinfo = $(element).find('.hdinfo .qb').text()
         cards.push({
             vod_id: href,
             vod_name: title,
             vod_pic: cover,
-            vod_remarks: subTitle,
+            vod_remarks: subTitle || hdinfo,
+            url: href,
             ext: {
-                url: `${appConfig.site}${href}`,
+                url: href,
             },
         })
     })
@@ -119,15 +109,15 @@ async function getTracks(ext) {
     const $ = cheerio.load(data)
 
     // 單集名稱重複會導致直接播放緩存的url，暫時加上劇名等修
-    let show = $('.module-info-heading > h1').text()
-    $('#panel1 .module-play-list-link').each((_, e) => {
-        const name = $(e).find('span').text()
+    let show = $('.moviedteail_tt h1').text()
+    $('.paly_list_btn a').each((_, e) => {
+        const name = $(e).text()
         const href = $(e).attr('href')
         tracks.push({
             name: `${show}-${name}`,
             pan: '',
             ext: {
-                url: `${appConfig.site}${href}`,
+                url: href,
             },
         })
     })
@@ -151,13 +141,35 @@ async function getPlayinfo(ext) {
             'User-Agent': UA,
         },
     })
+    function aesCbcDecode(ciphertext, key, iv) {
+        const encryptedHexStr = CryptoJS.enc.Base64.parse(ciphertext)
+        const encryptedBase64Str = CryptoJS.enc.Base64.stringify(encryptedHexStr)
 
-    const $ = cheerio.load(data)
-    let script = $('.player-box-main script').eq(0).text().replace('var player_aaaa=', '')
-    let json = JSON.parse(script)
-    let playUrl = json.url
+        const keyHex = CryptoJS.enc.Utf8.parse(key)
+        const ivHex = CryptoJS.enc.Utf8.parse(iv)
 
-    return { urls: [playUrl] }
+        const decrypted = CryptoJS.AES.decrypt(encryptedBase64Str, keyHex, {
+            iv: ivHex,
+            mode: CryptoJS.mode.CBC,
+            padding: CryptoJS.pad.Pkcs7,
+        })
+
+        const plaintext = decrypted.toString(CryptoJS.enc.Utf8)
+        return plaintext
+    }
+
+    let isPlayable = data.split('window.wp_nonce=')[1]
+    if (isPlayable) {
+        let text = isPlayable.split('eval')[0]
+        let code = text.match(/var .*?=.*?"(.*?)"/)[1]
+        let key = text.match(/var .*?=md5.enc.Utf8.parse\("(.*?)"/)[1]
+        let iv = text.match(/var iv=.*?\((\d+)/)[1]
+
+        text = aesCbcDecode(code, key, iv)
+        let playurl = text.match(/url: "(.*?)"/)[1]
+
+        return { urls: [playurl] }
+    }
 }
 
 async function search(ext) {
@@ -165,7 +177,7 @@ async function search(ext) {
 
     let text = ext.text // 搜索文本
     let page = ext.page || 1
-    let url = `${appConfig.site}/xvse${text}abcdefghig${page}klm.html`
+    let url = `${appConfig.site}/xssssearch?q=${text}$f=_all&p=${page}`
 
     const { data } = await axios.get(url, {
         headers: {
@@ -175,18 +187,20 @@ async function search(ext) {
 
     const $ = cheerio.load(data)
 
-    $('.module-card-item').each((_, element) => {
-        const href = $(element).find('.module-card-item-poster').attr('href')
-        const title = $(element).find('.module-card-item-title strong').text()
-        const cover = $(element).find('.module-item-pic img').attr('data-original')
-        const subTitle = $(element).find('.module-item-note').text()
+    $('div.bt_img > ul li').each((_, element) => {
+        const href = $(element).find('a').attr('href')
+        const title = $(element).find('img.thumb').attr('alt')
+        const cover = $(element).find('img.thumb').attr('data-original')
+        const subTitle = $(element).find('.jidi span').text()
+        const hdinfo = $(element).find('.hdinfo .qb').text()
         cards.push({
             vod_id: href,
             vod_name: title,
             vod_pic: cover,
-            vod_remarks: subTitle,
+            vod_remarks: subTitle || hdinfo,
+            url: href,
             ext: {
-                url: `${appConfig.site}${href}`,
+                url: href,
             },
         })
     })
