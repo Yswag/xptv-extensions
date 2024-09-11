@@ -6,12 +6,12 @@ const CryptoJS = require('crypto-js')
 // process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-const listUrl = 'https://www.ghw9zwp5.com/api/mw-movie/anonymous/video/list?pageNum=@page@&pageSize=30&sort=1&sortBy=1&type1=@type@'
+const listUrl = 'https://www.cfkj86.com/api/mw-movie/anonymous/video/list?pageNum=@page@&pageSize=30&sort=1&sortBy=1&type1=@type@'
 
 let appConfig = {
     ver: 1,
     title: '金牌影院',
-    site: 'https://www.ghw9zwp5.com',
+    site: 'https://www.cfkj86.com',
     tabs: [
         {
             name: '电影',

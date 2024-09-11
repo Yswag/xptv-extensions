@@ -161,17 +161,13 @@ async function getPlayinfo(ext) {
             })
 
             // 用axios發post請求會閃退
-            // const presp = await axios.post(
-            //     apiUrl,
-            //     {},
-            //     {
-            //         headers: {
-            //             'Content-Type': 'application/x-www-form-urlencoded',
-            //             'User-Agent': headers['User-Agent'],
-            //             Referer: iframeUrl,
-            //         },
-            //     }
-            // )
+            // const presp = await axios.post(apiUrl, params.toString(), {
+            //     headers: {
+            //         'Content-Type': 'application/x-www-form-urlencoded',
+            //         'User-Agent': headers['User-Agent'],
+            //         Referer: iframeUrl,
+            //     },
+            // })
             // console.log(presp.data)
             const presp = await fetch(apiUrl, {
                 method: 'POST',
