@@ -39,33 +39,6 @@ function getConfig() {
     return appConfig
 }
 
-// async function getTabs() {
-//     let url = appConfig.site
-//     let tabs = []
-
-//     const { data } = await axios.get(url, {
-//         headers: {
-//             'User-Agent': UA,
-//         },
-//     })
-
-//     const $ = cheerio.load(data)
-
-//     $('.sidebar .navbar-items li[role=group]').each((i, e) => {
-//         const name = $(e).find('a').attr('title')
-//         const href = $(e).find('a').attr('href')
-//         tabs.push({
-//             name,
-//             ext: {
-//                 id: i,
-//                 url: `${appConfig.site}${href}`,
-//             },
-//         })
-//     })
-
-//     return tabs
-// }
-
 async function getCards(ext) {
     let cards = []
     let { id, page = 1, url } = ext
@@ -118,13 +91,11 @@ async function getTracks(ext) {
     // 加载 HTML
     const $ = cheerio.load(data)
 
-    // 單集名稱重複會導致直接播放緩存的url，暫時加上劇名等修
-    let show = $('.module-info-heading > h1').text()
     $('#panel1 .module-play-list-link').each((_, e) => {
         const name = $(e).find('span').text()
         const href = $(e).attr('href')
         tracks.push({
-            name: `${show}-${name}`,
+            name: `${name}`,
             pan: '',
             ext: {
                 url: `${appConfig.site}${href}`,

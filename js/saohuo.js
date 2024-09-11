@@ -99,8 +99,6 @@ async function getTracks(ext) {
         play_from.push($(e).text().trim())
     })
 
-    // 單集名稱重複會導致直接播放緩存的url，暫時加上劇名等修
-    let show = $('.v_info_box .v_title').text()
     $('#play_link li').each((i, e) => {
         const from = play_from[i]
         const eps = $(e).find('a')
@@ -109,7 +107,7 @@ async function getTracks(ext) {
             const name = $(e).text()
             const href = $(e).attr('href')
             temp.push({
-                name: `${show}-${name}`,
+                name: `${name}`,
                 pan: '',
                 ext: {
                     url: `${appConfig.site}${href}`,

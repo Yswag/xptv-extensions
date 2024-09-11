@@ -108,13 +108,11 @@ async function getTracks(ext) {
     // 加载 HTML
     const $ = cheerio.load(data)
 
-    // 單集名稱重複會導致直接播放緩存的url，暫時加上劇名等修
-    let show = $('.moviedteail_tt h1').text()
     $('.paly_list_btn a').each((_, e) => {
         const name = $(e).text()
         const href = $(e).attr('href')
         tracks.push({
-            name: `${show}-${name}`,
+            name: `${name}`,
             pan: '',
             ext: {
                 url: href,

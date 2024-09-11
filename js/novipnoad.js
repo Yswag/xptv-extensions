@@ -107,8 +107,6 @@ async function getTracks(ext) {
     // 加载 HTML
     const $ = cheerio.load(data)
 
-    // 單集名稱重複會導致直接播放緩存的url，暫時加上劇名等修
-    let show = $('.video-item h1').text()
     let playInfo = $('.item-content script').text()
     let pkey = playInfo.match(/pkey:"(.*)"/)[1]
     let ref = $('meta[property="og:url"]')
@@ -118,7 +116,7 @@ async function getTracks(ext) {
     if (playInfo.includes('vid:')) {
         let vid = playInfo.match(/vid:"(.*)",/)[1]
         tracks.push({
-            name: `${show}-播放`,
+            name: `播放`,
             pan: '',
             ext: {
                 vid,
@@ -132,7 +130,7 @@ async function getTracks(ext) {
             let name = $(element).text()
             let vid = $(element).attr('data-vid')
             tracks.push({
-                name: `${show}-${name}`,
+                name: `${name}`,
                 pan: '',
                 ext: {
                     vid,

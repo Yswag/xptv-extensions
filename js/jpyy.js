@@ -100,15 +100,13 @@ async function getTracks(ext) {
     //     }
     // }
     // let vodJson = json[3].data.data
-
-    // 單集名稱重複會導致直接播放緩存的url，暫時加上劇名等修
-    let show = $('h1').text()
+    s
     let playlist = $('div[class^="detail__PlayListBox"]').find('div.listitem a')
     playlist.each((_, e) => {
         const name = $(e).text()
         const href = $(e).attr('href')
         tracks.push({
-            name: `${show}-${name}`,
+            name: `${name}`,
             pan: '',
             ext: {
                 url: `${appConfig.site}${href}`,

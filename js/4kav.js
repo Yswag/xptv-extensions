@@ -123,13 +123,6 @@ async function getTracks(ext) {
     // 加载 HTML
     const $ = cheerio.load(data)
 
-    // 單集名稱重複會導致直接播放緩存的url，暫時加上劇名等修
-    let show = $('#MainContent_titleh12 > div')
-        .attr('title')
-        .split('/')[0]
-        .trim()
-        .replace(/第\d+集/, '')
-        .trim()
     // 檢查是不是多集
     let isTV = $('#rtlist li').length > 0
     if (isTV) {
@@ -138,7 +131,7 @@ async function getTracks(ext) {
             let name = $(element).find('span').text()
             let url = $(element).find('img').attr('src').replace('screenshot.jpg', '')
             tracks.push({
-                name: show + '-' + name,
+                name: name,
                 pan: '',
                 ext: {
                     url,
@@ -147,7 +140,7 @@ async function getTracks(ext) {
         })
     } else {
         tracks.push({
-            name: show + '-播放',
+            name: '播放',
             pan: '',
             ext: {
                 url,
