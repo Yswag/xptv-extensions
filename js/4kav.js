@@ -65,17 +65,14 @@ async function getCards(ext) {
         url += `/page-${lastPage[id] - page + 1}.html`
     }
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    // 加载 HTML
     const $ = cheerio.load(data)
 
-    // 解析数据，例如提取标题
     $('#MainContent_newestlist .virow').each((_, element) => {
         let item = $(element).find('.NTMitem')
         item.each((_, element) => {
@@ -113,14 +110,12 @@ async function getTracks(ext) {
     let tracks = []
     let url = ext.url
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    // 加载 HTML
     const $ = cheerio.load(data)
 
     // 檢查是不是多集
@@ -159,10 +154,8 @@ async function getTracks(ext) {
 }
 
 async function getPlayinfo(ext) {
-    var plays = []
     let url = ext.url.replace('www.', '')
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: {
             'User-Agent': UA,
@@ -171,7 +164,6 @@ async function getPlayinfo(ext) {
 
     const $ = cheerio.load(data)
     let playUrl = $('#MainContent_videowindow video source').attr('src')
-    // console.log(playUrl)
 
     return { urls: [playUrl] }
 }
@@ -179,9 +171,7 @@ async function getPlayinfo(ext) {
 async function search(ext) {
     let cards = []
 
-    let text = ext.text // 搜索文本
-    // 應該不需要翻頁吧
-    // let page = ext.page || 1
+    let text = ext.text
     let url = appConfig.site + `/s?q=${text}`
 
     const { data } = await axios.get(url, {

@@ -3,7 +3,7 @@ const axios = require('axios')
 const CryptoJS = require('crypto-js')
 
 // 測試時忽略證書驗證
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
@@ -43,7 +43,6 @@ async function getTabs() {
         list.push({
             name,
             ext: {
-                // id: i.toString(),
                 url: href,
             },
         })
@@ -60,17 +59,13 @@ async function getCards(ext) {
         url += `/page/${page}/`
     }
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    // 加载 HTML
     const $ = cheerio.load(data)
-
-    // 解析数据，例如提取标题
     $('.video-listing-content .video-item').each((_, element) => {
         const id = $(element).find('h3 a').attr('rel')
         const title = $(element).find('h3 a').attr('title')
@@ -97,16 +92,13 @@ async function getTracks(ext) {
     let tracks = []
     let url = ext.url
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    // 加载 HTML
     const $ = cheerio.load(data)
-
     let playInfo = $('.item-content script').text()
     let pkey = playInfo.match(/pkey:"(.*)"/)[1]
     let ref = $('meta[property="og:url"]')
@@ -200,7 +192,7 @@ async function getPlayinfo(ext) {
 async function search(ext) {
     let cards = []
 
-    let text = ext.text // 搜索文本
+    let text = ext.text
     let page = ext.page || 1
     let url = `${appConfig.site}/page/${page}/?s=${text}`
 

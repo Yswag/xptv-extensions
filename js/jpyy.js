@@ -55,7 +55,6 @@ async function getCards(ext) {
     url = url.replace('@type@', id).replace('@page@', page)
     const headers = getHeader(url)
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: headers,
     })
@@ -82,7 +81,6 @@ async function getTracks(ext) {
     let tracks = []
     let url = ext.url
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: {
             'User-Agent': UA,
@@ -90,16 +88,7 @@ async function getTracks(ext) {
         },
     })
 
-    // 加载 HTML
     const $ = cheerio.load(data)
-
-    // let json = {}
-    // for (const script of $('script')) {
-    //     if ($(script).text().indexOf('操作成功') > -1) {
-    //         json = JSON.parse(eval($(script).text().replaceAll('self.__next_f.push(', '').replaceAll(')', ''))[1].replaceAll('6:', ''))
-    //     }
-    // }
-    // let vodJson = json[3].data.data
 
     let playlist = $('div[class^="detail__PlayListBox"]').find('div.listitem a')
     playlist.each((_, e) => {
@@ -129,7 +118,6 @@ async function getPlayinfo(ext) {
     const url = `${appConfig.site}/api/mw-movie/anonymous/v1/video/episode/url?id=${id}&nid=${sid}`
     const headers = getHeader(url)
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: headers,
     })
@@ -142,7 +130,7 @@ async function getPlayinfo(ext) {
 async function search(ext) {
     let cards = []
 
-    const text = ext.text // 搜索文本
+    const text = ext.text
     const page = ext.page || 1
     const url = `${appConfig.site}/api/mw-movie/anonymous/video/searchByWordPageable?keyword=${text}&pageNum=${page}&pageSize=12&type=false`
     const headers = getHeader(url)

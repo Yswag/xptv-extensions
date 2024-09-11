@@ -45,17 +45,14 @@ async function getCards(ext) {
 
     url = url.replace('@id@', id).replace('@page@', page)
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    // 加载 HTML
     const $ = cheerio.load(data)
 
-    // 解析数据，例如提取标题
     $('.module-poster-item').each((_, element) => {
         const href = $(element).attr('href')
         const title = $(element).attr('title')
@@ -81,14 +78,12 @@ async function getTracks(ext) {
     let tracks = []
     let url = ext.url
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    // 加载 HTML
     const $ = cheerio.load(data)
 
     $('#panel1 .module-play-list-link').each((_, e) => {
@@ -116,7 +111,6 @@ async function getTracks(ext) {
 async function getPlayinfo(ext) {
     const url = ext.url
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: {
             'User-Agent': UA,
@@ -134,7 +128,7 @@ async function getPlayinfo(ext) {
 async function search(ext) {
     let cards = []
 
-    let text = ext.text // 搜索文本
+    let text = ext.text
     let page = ext.page || 1
     let url = `${appConfig.site}/xvse${text}abcdefghig${page}klm.html`
 

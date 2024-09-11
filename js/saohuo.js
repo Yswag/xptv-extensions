@@ -51,15 +51,12 @@ async function getCards(ext) {
 
     url = url.replace('@id@', id).replace('@page@', page)
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: headers,
     })
 
-    // 加载 HTML
     const $ = cheerio.load(data)
 
-    // 解析数据，例如提取标题
     $('ul.v_list div.v_img').each((_, element) => {
         const href = $(element).find('a').attr('href')
         const title = $(element).find('a').attr('title')
@@ -82,16 +79,13 @@ async function getCards(ext) {
 }
 
 async function getTracks(ext) {
-    let tracks = []
     let list = []
     let url = ext.url
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: headers,
     })
 
-    // 加载 HTML
     const $ = cheerio.load(data)
 
     let play_from = []
@@ -131,7 +125,6 @@ async function getTracks(ext) {
 async function getPlayinfo(ext) {
     const url = ext.url
 
-    // 发送请求
     const { data } = await axios.get(url, {
         headers: headers,
     })
@@ -189,7 +182,7 @@ async function search(ext) {
     let cards = []
     const ocrApi = 'https://api.nn.ci/ocr/b64/json'
 
-    let text = ext.text // 搜索文本
+    let text = ext.text
     // let page = ext.page || 1
     let validate = appConfig.site + '/include/vdimgck.php'
     let url = appConfig.site + '/search.php?scheckAC=check&page=&searchtype=&order=&tid=&area=&year=&letter=&yuyan=&state=&money=&ver=&jq='
