@@ -1,6 +1,5 @@
 const cheerio = require('cheerio')
 const axios = require('axios')
-const CryptoJS = require('crypto-js')
 
 // 測試時忽略證書驗證
 // process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
