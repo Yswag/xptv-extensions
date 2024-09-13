@@ -1,12 +1,8 @@
-const fs = require('fs')
-const os = require('os')
-const cheerio = require('cheerio')
-const axios = require('axios')
 const CryptoJS = require('crypto-js')
+const fetch = require('node-fetch')
 
 // 測試時忽略證書驗證
-// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
-const cachesPath = `${os.homedir()}/Documents/caches`
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.3'
 let cookie = 'PHPSESSID=eebef1362fc5312a330b700fc4fafbd0'
@@ -92,18 +88,23 @@ async function getTracks(ext) {
     let res = await postData(url, param)
     let playlist = (await res.json()).data.vod_play_list
     playlist.forEach((e) => {
-        const sourceName = obj.name
-        let playList = ''
-        const videoInfo = obj.urls
-        const parse = obj.parse_urls
-        if (parse && parse.length > 0) this.parseMap[sourceName] = parse
+        const videoInfo = e.urls
+        const parse = e.parse_urls[0] || ''
+        videoInfo.forEach((e) => {
+            let from = e.form
+            let ep = e.name
+            let url = e.url
+            if (parse) {
+                url = parse + url
+            }
 
-        tracks.push({
-            name: name,
-            pan: '',
-            ext: {
-                key: key,
-            },
+            tracks.push({
+                name: `${from}-${ep}`,
+                pan: '',
+                ext: {
+                    url: url,
+                },
+            })
         })
     })
 
@@ -118,29 +119,19 @@ async function getTracks(ext) {
 }
 
 async function getPlayinfo(ext) {
-    const publicKey = JSON.parse(fs.readFileSync(jsonPath)).publicKey
-    let key = ext.key
-    let url = `${appConfig.site}/v3/video/play?cinema=1&id=${key}&a=0&lang=none&usersign=1&region=GL.&device=1&isMasterSupport=1`
-    let params = url.split('?')[1]
-    url += `&vv=${getSignature(params)}&pub=${publicKey}`
+    let url = ext.url
+    let isParse = url.includes('url=')
 
-    const { data } = await axios.get(url, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
-
-    let paths = data.data.info[0].flvPathList
-    let playUrl = ''
-    paths.forEach(async (e) => {
-        if (e.isHls) {
-            let link = e.result
-            link += `?vv=${getSignature('')}&pub=${publicKey}`
-            playUrl = link
+    if (isParse) {
+        let res = await request(url)
+        let json = await res.json()
+        if (json.url) {
+            return { urls: [json.url] }
         }
-    })
+        return { urls: [url.split('url=')[1]] }
+    }
 
-    return { urls: [playUrl] }
+    return { urls: [url] }
 }
 
 async function search(ext) {
@@ -148,23 +139,26 @@ async function search(ext) {
 
     const text = ext.text
     const page = ext.page || 1
-    const url = `https://rankv21.iyf.tv/v3/list/briefsearch?tags=${encodeURIComponent(text)}&orderby=4&page=${page}&size=10&desc=0&isserial=-1&istitle=true`
+    const limit = 12
+    const param = {
+        keyword: text,
+        page: page,
+        limit: limit,
+    }
+    const url = appConfig.site + '/v2/home/search'
 
-    const { data } = await axios.get(url, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
+    let res = await postData(url, param)
 
-    let list = data.data.info[0].result
+    let list = (await res.json()).data.list
     list.forEach((e) => {
+        const id = e.vod_id.toString()
         cards.push({
-            vod_id: e.contxt,
-            vod_name: e.title,
-            vod_pic: e.imgPath,
-            vod_remarks: e.cid,
+            vod_id: id,
+            vod_name: e.vod_name,
+            vod_pic: e.vod_pic,
+            vod_remarks: e.vod_remarks,
             ext: {
-                key: e.contxt,
+                id: id,
             },
         })
     })
@@ -184,43 +178,45 @@ async function postData(url, data) {
     }
     const reqData = data ? Object.assign({}, defaultData, data) : defaultData
 
-    return await request(url, 'post', reqData)
+    return request(url, 'post', reqData)
 }
 
 async function request(reqUrl, method, data) {
     const headers = {
         'User-Agent': UA,
-        'Content-Type': 'application/x-www-form-urlencoded',
     }
 
     if (cookie) {
         headers['Cookie'] = cookie
     }
+    let body = null
 
-    const body = method === 'post' ? new URLSearchParams(data).toString() : null
-
-    let res = await fetch(reqUrl, {
-        method: method || 'get',
-        headers: headers,
-        body: body, // Only for POST requests
-    })
-
-    // Check for status instead of code
-    if (res.status === 403) {
-        const text = await res.text()
-        const path = text.match(/window\.location\.href ="(.*?)"/)[1]
-        cookie = Array.isArray(res.headers.get('set-cookie')) ? res.headers.get('set-cookie').join(';') : res.headers.get('set-cookie')
-
-        headers['Cookie'] = cookie
-
-        res = await fetch(appConfig.site + path, {
-            method: method || 'get',
-            headers: headers,
-            body: body, // Only for POST requests
-        })
+    if (method === 'post') {
+        headers['Content-Type'] = 'application/x-www-form-urlencoded'
+        body = new URLSearchParams(data).toString()
     }
 
-    return res
+    return fetch(reqUrl, {
+        method: method || 'get',
+        headers: headers,
+        body: body,
+    })
+
+    // if (res.status === 403) {
+    //     const text = await res.text()
+    //     const path = text.match(/window\.location\.href ="(.*?)"/)[1]
+    //     cookie = Array.isArray(res.headers.get('set-cookie')) ? res.headers.get('set-cookie').join(';') : res.headers.get('set-cookie')
+
+    //     headers['Cookie'] = cookie
+
+    //     res = await fetch(appConfig.site + path, {
+    //         method: method || 'get',
+    //         headers: headers,
+    //         body: body,
+    //     })
+    // }
+
+    // return res
 }
 
 module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }

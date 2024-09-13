@@ -88,7 +88,7 @@
             "name": "天天影視",
             "type": 3,
             "api": "csp_tiantian",
-            "ext": "http://192.168.50.136:5500/js/tiantian.js"
+            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/tiantian.js"
         }
     ]
 }
