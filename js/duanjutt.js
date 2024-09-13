@@ -142,6 +142,10 @@ async function getPlayinfo(ext) {
             const response = await axios.get(purl, {
                 maxRedirects: 0, // 禁止重定向
                 httpsAgent: httpsAgent,
+                headers: {
+                    'User-Agent': UA,
+                    Referer: appConfig.site,
+                },
             })
         } catch (error) {
             if (error.response && error.response.status >= 300 && error.response.status < 400) {
