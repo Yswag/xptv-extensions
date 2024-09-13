@@ -1,6 +1,6 @@
 const cheerio = require('cheerio')
 const axios = require('axios')
-const CryptoJS = require('crypto-js')
+const https = require('https')
 
 // 測試時忽略證書驗證
 // process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
@@ -133,9 +133,22 @@ async function getPlayinfo(ext) {
 
     let player = data.match(/r player.*=\{(.*)\}/)[1]
     let config = JSON.parse(`{${player}}`)
+
     if (config.encrypt === 0) {
-        let playUrl = config.url
-        return { urls: [playUrl] }
+        let purl = config.url
+        try {
+            // 跳過證書驗證
+            const httpsAgent = new https.Agent({ rejectUnauthorized: false })
+            const response = await axios.get(purl, {
+                maxRedirects: 0, // 禁止重定向
+                httpsAgent: httpsAgent,
+            })
+        } catch (error) {
+            if (error.response && error.response.status >= 300 && error.response.status < 400) {
+                const location = error.response.headers.location
+                return { urls: [location] }
+            }
+        }
     }
 
     return { urls: [] }
