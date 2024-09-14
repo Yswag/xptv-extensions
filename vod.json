@@ -46,13 +46,13 @@
             "name": "小蘋果",
             "type": 3,
             "api": "csp_apple",
-            "ext": "http://192.168.50.136:5500/js/apple.js"
+            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/apple.js"
         },
         {
-            "name": "南風短劇",
+            "name": "南風短劇 | PAN",
             "type": 3,
             "api": "csp_nanfdj",
-            "ext": "http://192.168.50.136:5500/js/nanfdj.js"
+            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/nanfdj.js"
         },
         {
             "name": "星芽短劇",
