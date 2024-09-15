@@ -118,7 +118,7 @@ async function getPlayinfo(ext) {
         server.listen(9453)
     }
 
-    return { urls: ['http://127.0.0.1:9453/apple.m3u8'] }
+    return { urls: [`http://127.0.0.1:9453/${key}.m3u8`] }
 }
 
 async function search(ext) {
