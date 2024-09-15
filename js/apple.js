@@ -8,7 +8,6 @@ const http = require('http')
 const UA = 'okhttp/3.12.11'
 
 let server = null
-let m3u8Data = ''
 
 let appConfig = {
     ver: 1,
@@ -111,8 +110,6 @@ async function getTracks(ext) {
 async function getPlayinfo(ext) {
     let key = ext.key
 
-    m3u8Data = await getM3u8(key)
-
     if (!server) {
         server = createServer()
         server.listen(9453)
@@ -152,10 +149,18 @@ async function search(ext) {
 }
 
 function createServer() {
-    return http.createServer((req, res) => {
-        res.statusCode = 200
-        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl')
-        res.end(m3u8Data)
+    return http.createServer(async (req, res) => {
+        if (req.url.endsWith('.m3u8')) {
+            let key = req.url.split('/')[1].split('.')[0]
+            let m3u8Data = await getM3u8(key)
+
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/vnd.apple.mpegurl')
+            res.end(m3u8Data)
+        } else {
+            res.statusCode = 404
+            res.end('Not Found')
+        }
     })
 }
 
@@ -171,18 +176,15 @@ async function getM3u8(key) {
         screeny: '720',
         timestamp: Math.floor(Date.now() / 1e3),
     }
+    const str = `||||DC6FFCB55FA||861824127032820||12702720||Asus/Asus/ASUS_I003DD:7.1.2/20171130.376229:user/release-keysXPGBOX com.phoenix.tv1.3.3${headers.timestamp}`
+    headers.hash = CryptoJS.MD5(str).toString().toLowerCase().substring(8, 12)
 
-    headers.hash = CryptoJS.MD5(
-        '||||DC6FFCB55FA||861824127032820||12702720||Asus/Asus/ASUS_I003DD:7.1.2/20171130.376229:user/release-keysXPGBOX com.phoenix.tv1.3.3' +
-            headers.timestamp
-    )
-        .toString()
-        .toLowerCase()
-        .substring(8, 12)
-
-    const { data } = await axios.get(url, { headers })
-
-    return data.replace('/m3u8key/', 'http://c.xpgtv.net/m3u8key/')
+    try {
+        const { data } = await axios.get(url, { headers })
+        return data.replace('/m3u8key/', 'http://c.xpgtv.net/m3u8key/')
+    } catch (error) {
+        throw error
+    }
 }
 
 module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }
