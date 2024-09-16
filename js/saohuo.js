@@ -3,14 +3,10 @@ const axios = require('axios')
 const CryptoJS = require('crypto-js')
 const fetch = require('node-fetch')
 
-// 測試時忽略證書驗證
-// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
-
 const headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36',
     Cookie: 'PHPSESSID=oe6prf46idn97gmd7j5gffka39',
 }
-const listUrl = 'https://saohuo.tv/list/@id@-@page@.html'
 
 let appConfig = {
     ver: 1,
@@ -21,21 +17,18 @@ let appConfig = {
             name: '電影',
             ext: {
                 id: 1,
-                url: listUrl,
             },
         },
         {
             name: '電視劇',
             ext: {
                 id: 2,
-                url: listUrl,
             },
         },
         {
             name: '動漫',
             ext: {
                 id: 4,
-                url: listUrl,
             },
         },
     ],
@@ -47,9 +40,8 @@ function getConfig() {
 
 async function getCards(ext) {
     let cards = []
-    let { id, page = 1, url } = ext
-
-    url = url.replace('@id@', id).replace('@page@', page)
+    let { id, page = 1 } = ext
+    const url = `${appConfig.site}/list/${id}-${page}.html`
 
     const { data } = await axios.get(url, {
         headers: headers,

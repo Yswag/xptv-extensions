@@ -2,11 +2,7 @@ const cheerio = require('cheerio')
 const axios = require('axios')
 const CryptoJS = require('crypto-js')
 
-// 測試時忽略證書驗證
-// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
-
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-const listUrl = 'https://www.cfkj86.com/api/mw-movie/anonymous/video/list?pageNum=@page@&pageSize=30&sort=1&sortBy=1&type1=@type@'
 
 let appConfig = {
     ver: 1,
@@ -17,28 +13,24 @@ let appConfig = {
             name: '电影',
             ext: {
                 id: 1,
-                url: listUrl,
             },
         },
         {
             name: '电视剧',
             ext: {
                 id: 2,
-                url: listUrl,
             },
         },
         {
             name: '综艺',
             ext: {
                 id: 3,
-                url: listUrl,
             },
         },
         {
             name: '动漫',
             ext: {
                 id: 4,
-                url: listUrl,
             },
         },
     ],
@@ -50,9 +42,9 @@ function getConfig() {
 
 async function getCards(ext) {
     let cards = []
-    let { id, page = 1, url } = ext
+    let { id, page = 1 } = ext
+    const url = `${appConfig.site}/api/mw-movie/anonymous/video/list?pageNum=${page}&pageSize=30&sort=1&sortBy=1&type1=${id}`
 
-    url = url.replace('@type@', id).replace('@page@', page)
     const headers = getHeader(url)
 
     const { data } = await axios.get(url, {

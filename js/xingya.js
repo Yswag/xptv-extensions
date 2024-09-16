@@ -4,9 +4,6 @@ const axios = require('axios')
 const fetch = require('node-fetch')
 const CryptoJS = require('crypto-js')
 
-// 測試時忽略證書驗證
-// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
-
 let cachesPath = `${os.homedir()}/Documents/caches`
 
 let appConfig = {

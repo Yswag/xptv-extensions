@@ -3,9 +3,6 @@ const fs = require('fs')
 const os = require('os')
 const axios = require('axios')
 
-// 測試時忽略證書驗證
-// process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
-
 let cachesPath = `${os.homedir()}/Documents/caches`
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1'

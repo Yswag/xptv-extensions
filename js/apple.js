@@ -151,7 +151,7 @@ async function search(ext) {
 function createServer() {
     return http.createServer(async (req, res) => {
         if (req.url.endsWith('.m3u8')) {
-            let key = req.url.split('/')[1].split('.')[0]
+            let key = req.url.split('/')[1]?.split('.')[0]
             let m3u8Data = await getM3u8(key)
 
             res.statusCode = 200
