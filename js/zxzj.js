@@ -1,4 +1,5 @@
 // tv demo test
+// const { $html, argsify, jsonify, $fetch, $print, $cache } = require('../test/libs.js')
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
 
@@ -193,3 +194,5 @@ async function search(ext) {
         list: cards,
     })
 }
+
+// module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }
