@@ -1,11 +1,7 @@
-const cheerio = require('cheerio')
-const axios = require('axios')
-const CryptoJS = require('crypto-js')
-const fetch = require('node-fetch')
+const { $html, argsify, jsonify, $fetch, $print, $cache } = require('../test/libs.js')
 
 const headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36',
-    Cookie: 'PHPSESSID=oe6prf46idn97gmd7j5gffka39',
 }
 
 let appConfig = {
@@ -34,26 +30,26 @@ let appConfig = {
     ],
 }
 
-function getConfig() {
-    return appConfig
+async function getConfig() {
+    return jsonify(appConfig)
 }
 
 async function getCards(ext) {
+    ext = argsify(ext)
     let cards = []
     let { id, page = 1 } = ext
     const url = `${appConfig.site}/list/${id}-${page}.html`
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: headers,
     })
 
-    const $ = cheerio.load(data)
-
-    $('ul.v_list div.v_img').each((_, element) => {
-        const href = $(element).find('a').attr('href')
-        const title = $(element).find('a').attr('title')
-        const cover = $(element).find('img').attr('data-original')
-        const subTitle = $(element).find('.v_note').text()
+    let elems = $html.elements(data, 'ul.v_list div.v_img')
+    elems.forEach((element) => {
+        const href = $html.attr(element, 'a', 'href')
+        const title = $html.attr(element, 'a', 'title')
+        const cover = $html.attr(element, 'img', 'data-original')
+        const subTitle = $html.text(element, '.v_note')
         cards.push({
             vod_id: href,
             vod_name: title,
@@ -65,16 +61,17 @@ async function getCards(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 async function getTracks(ext) {
+    ext = argsify(ext)
     let list = []
     let url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: headers,
     })
 
@@ -109,15 +106,16 @@ async function getTracks(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: list,
-    }
+    })
 }
 
 async function getPlayinfo(ext) {
+    ext = argsify(ext)
     const url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: headers,
     })
 
@@ -126,7 +124,7 @@ async function getPlayinfo(ext) {
         const iframeUrl = $('iframe').attr('src')
         const apiUrl = iframeUrl.match(/^(https?:\/\/[^\/]+)/)[1] + '/api.php'
 
-        const resp = await axios.get(iframeUrl, {
+        const resp = await $fetch.get(iframeUrl, {
             headers: headers,
         })
         if (resp.data) {
@@ -143,8 +141,8 @@ async function getPlayinfo(ext) {
                 play: 1,
             })
 
-            // 用axios發post請求會閃退
-            // const presp = await axios.post(apiUrl, params.toString(), {
+            // 用$fetch發post請求會閃退
+            // const presp = await $fetch.post(apiUrl, params.toString(), {
             //     headers: {
             //         'Content-Type': 'application/x-www-form-urlencoded',
             //         'User-Agent': headers['User-Agent'],
@@ -165,21 +163,23 @@ async function getPlayinfo(ext) {
             const result = await presp.json()
 
             let playUrl = /http/.test(result.url) ? result.url : iframeUrl.match(/^(https?:\/\/[^\/]+)/)[1] + result.url
-            return { urls: [playUrl] }
+            return jsonify({ urls: [playUrl] })
         }
     }
 }
 
 async function search(ext) {
+    ext = argsify(ext)
     let cards = []
     const ocrApi = 'https://api.nn.ci/ocr/b64/json'
+    let cookie = 'PHPSESSID=' + generatePHPSESSID()
 
     let text = ext.text
     // let page = ext.page || 1
     let validate = appConfig.site + '/include/vdimgck.php'
     let url = appConfig.site + '/search.php?scheckAC=check&page=&searchtype=&order=&tid=&area=&year=&letter=&yuyan=&state=&money=&ver=&jq='
 
-    let img = await axios.get(validate, {
+    let img = await $fetch.get(validate, {
         headers: headers,
         responseType: 'arraybuffer',
     })
@@ -230,9 +230,22 @@ async function search(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
+    })
+}
+
+function generatePHPSESSID() {
+    const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    const length = 26
+    let sessionId = ''
+
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length)
+        sessionId += characters[randomIndex]
     }
+
+    return sessionId
 }
 
 module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }

@@ -1,5 +1,4 @@
 // tv
-// const { $html, argsify, jsonify, $fetch, $print, $cache } = require('../test/libs.js')
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1'
 
@@ -39,7 +38,6 @@ async function getConfig() {
 async function getCards(ext) {
     ext = argsify(ext)
     // 頁數寫入cache
-    // let jsonPath = `${cachesPath}/4kav-lastPage.json`
     var lastPage = {
         0: 1,
         1: 1,
@@ -82,34 +80,12 @@ async function getCards(ext) {
         })
     })
 
-    /*
-    $('#MainContent_newestlist .virow').each((_, element) => {
-        let item = $(element).find('.NTMitem')
-        item.each((_, element) => {
-            const href = $(element).find('.title a').attr('href')
-            const title = $(element).find('.title h2').text()
-            const cover = $(element).find('.poster img').attr('src')
-            const subTitle = $(element).find('label[title=分辨率]').text().split('/')[0]
-            cards.push({
-                vod_id: href,
-                vod_name: title,
-                vod_pic: cover,
-                vod_remarks: subTitle,
-                ext: {
-                    url: `${appConfig.site}${href}`,
-                },
-            })
-        })
-    })
-    */
-
     // get lastpage
     if (page == 1) {
         const pageNumber = $html.text(data, '#MainContent_header_nav .page-number')
         const num = pageNumber.split('/')[1]
         lastPage[id] = num
         const jsonData = JSON.stringify(lastPage, null, 2)
-        // fs.writeFileSync(jsonPath, jsonData)
         $cache.set('av', jsonData)
     }
 
@@ -128,8 +104,6 @@ async function getTracks(ext) {
             'User-Agent': UA,
         },
     })
-
-    // const $ = cheerio.load(data)
 
     // 檢查是不是多集
     let playlist = $html.elements(data, '#rtlist li')
@@ -175,7 +149,6 @@ async function getPlayinfo(ext) {
         },
     })
 
-    // const $ = cheerio.load(data)
     let playUrl = $html.attr(data, '#MainContent_videowindow video source', 'src')
 
     return jsonify({ urls: [playUrl] })
@@ -215,5 +188,3 @@ async function search(ext) {
         list: cards,
     })
 }
-
-// module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }
