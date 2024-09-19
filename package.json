@@ -13,7 +13,8 @@
         "cheerio": "^1.0.0",
         "crypto-js": "^4.2.0",
         "node-fetch": "^2.7.0",
-        "node-html-parser": "^6.1.13"
+        "node-html-parser": "^6.1.13",
+        "node-rsa": "^1.1.1"
     },
     "devDependencies": {
         "jest": "^29.7.0"
