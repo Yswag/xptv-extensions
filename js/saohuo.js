@@ -1,4 +1,6 @@
-const { $html, argsify, jsonify, $fetch, $print, $cache } = require('../test/libs.js')
+// const { $html, argsify, jsonify, $fetch, $print, $cache } = require('../test/libs.js')
+const CryptoJS = createCryptoJS()
+const cheerio = createCheerio()
 
 const headers = {
     'User-Agent': 'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36',
@@ -133,34 +135,23 @@ async function getPlayinfo(ext) {
             const url = script.match(/var url = "(.*)"/)[1]
             const t = script.match(/var t = "(.*)"/)[1]
             const key = script.match(/var key = "(.*)"/)[1]
-            const params = new URLSearchParams({
+            const params = {
                 url: url,
                 t: t,
                 key: key,
                 act: 0,
                 play: 1,
-            })
+            }
 
-            // 用$fetch發post請求會閃退
-            // const presp = await $fetch.post(apiUrl, params.toString(), {
-            //     headers: {
-            //         'Content-Type': 'application/x-www-form-urlencoded',
-            //         'User-Agent': headers['User-Agent'],
-            //         Referer: iframeUrl,
-            //     },
-            // })
-            // console.log(presp.data)
-            const presp = await fetch(apiUrl, {
-                method: 'POST',
+            const presp = await $fetch.post(apiUrl, params, {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'User-Agent': headers['User-Agent'],
                     Referer: iframeUrl,
                 },
-                body: params.toString(),
             })
 
-            const result = await presp.json()
+            const result = JSON.parse(presp.data)
 
             let playUrl = /http/.test(result.url) ? result.url : iframeUrl.match(/^(https?:\/\/[^\/]+)/)[1] + result.url
             return jsonify({ urls: [playUrl] })
@@ -180,7 +171,10 @@ async function search(ext) {
     let url = appConfig.site + '/search.php?scheckAC=check&page=&searchtype=&order=&tid=&area=&year=&letter=&yuyan=&state=&money=&ver=&jq='
 
     let img = await $fetch.get(validate, {
-        headers: headers,
+        headers: {
+            'User-Agent': headers['User-Agent'],
+            cookie: cookie,
+        },
         responseType: 'arraybuffer',
     })
 
@@ -194,21 +188,20 @@ async function search(ext) {
 
     let b64 = arrayBufferToBase64(img.data)
 
-    let ocrRes = await fetch(ocrApi, {
-        method: 'POST',
-        headers: headers,
-        body: b64,
+    let ocrRes = await $fetch.post(ocrApi, b64, {
+        headers: {
+            'User-Agent': headers['User-Agent'],
+            cookie: cookie,
+        },
     })
     let vd = (await ocrRes.json()).result
 
-    let searchRes = await fetch(url, {
-        method: 'POST',
+    let searchRes = await $fetch.post(url, `validate=${vd.toUpperCase()}&searchword=${encodeURIComponent(text)}`, {
         headers: {
             'user-agent': headers['User-Agent'],
-            cookie: headers.Cookie,
+            cookie: cookie,
             'content-type': 'application/x-www-form-urlencoded',
         },
-        body: `validate=${vd.toUpperCase()}&searchword=${encodeURIComponent(text)}`,
     })
     let html = await searchRes.text()
 
@@ -248,4 +241,4 @@ function generatePHPSESSID() {
     return sessionId
 }
 
-module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }
+// module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }

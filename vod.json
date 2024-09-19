@@ -25,7 +25,8 @@
             "name": "燒火電影",
             "type": 3,
             "api": "csp_saohuo",
-            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/saohuo.js"
+            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/saohuo.js",
+            "ext2": "https://raw.githubusercontent.com/Yswag/xptv-extensions/tv/js/saohuo.js"
         },
         {
             "name": "素白白影視",
@@ -64,13 +65,15 @@
             "name": "星芽短劇",
             "type": 3,
             "api": "csp_xingya",
-            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/xingya.js"
+            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/xingya.js",
+            "ext2": "https://raw.githubusercontent.com/Yswag/xptv-extensions/tv/js/xingya.js"
         },
         {
             "name": "瓜子影視",
             "type": 3,
             "api": "csp_guazi",
-            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/gzys.js"
+            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/gzys.js",
+            "ext2": "https://raw.githubusercontent.com/Yswag/xptv-extensions/tv/js/gzys.js"
         },
         {
             "name": "anfuns",
@@ -96,7 +99,8 @@
             "name": "天天影視",
             "type": 3,
             "api": "csp_tiantian",
-            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/tiantian.js"
+            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/tiantian.js",
+            "ext2": "https://raw.githubusercontent.com/Yswag/xptv-extensions/tv/js/tiantian.js"
         },
         {
             "name": "囧次元",
