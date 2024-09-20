@@ -135,10 +135,10 @@ async function getPlayinfo(ext) {
         let purl = config.url
         try {
             // 跳過證書驗證
-            const httpsAgent = new https.Agent({ rejectUnauthorized: false })
-            const response = await axios.get(purl, {
+            // const httpsAgent = new https.Agent({ rejectUnauthorized: false })
+            const response = await $fetch.get(purl, {
                 maxRedirects: 0, // 禁止重定向
-                httpsAgent: httpsAgent,
+                // httpsAgent: httpsAgent,
                 headers: {
                     'User-Agent': UA,
                     Referer: appConfig.site,
@@ -192,5 +192,3 @@ async function search(ext) {
         list: cards,
     }
 }
-
-// module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }

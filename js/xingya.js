@@ -208,11 +208,6 @@ async function getJWT(header) {
     const login = `https://u.shytkjgs.com/user/v1/account/login`
     let headers = header
     headers['Content-Type'] = 'application/x-www-form-urlencoded'
-    // const body = `device=${headers.device_id}`
-
-    // const res = await axios.post(login, body, {
-    //     headers: headers,
-    // })
 
     const { data } = await $fetch.post(
         login,
@@ -258,5 +253,3 @@ function decodeJWT(token) {
 function base64Decode(text) {
     return CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(text))
 }
-
-// module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }

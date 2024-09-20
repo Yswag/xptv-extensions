@@ -1,4 +1,3 @@
-// const { $html, argsify, jsonify, $fetch, $print, $cache } = require('../test/libs.js')
 const CryptoJS = createCryptoJS()
 const cheerio = createCheerio()
 
@@ -240,5 +239,3 @@ function generatePHPSESSID() {
 
     return sessionId
 }
-
-// module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }
