@@ -120,9 +120,10 @@ async function getTracks(ext) {
 }
 
 async function getPlayinfo(ext) {
+    ext = argsify(ext)
     const url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
@@ -133,29 +134,31 @@ async function getPlayinfo(ext) {
 
     if (config.encrypt === 0) {
         let purl = config.url
-        try {
-            // 跳過證書驗證
-            // const httpsAgent = new https.Agent({ rejectUnauthorized: false })
-            const response = await $fetch.get(purl, {
-                maxRedirects: 0, // 禁止重定向
-                // httpsAgent: httpsAgent,
-                headers: {
-                    'User-Agent': UA,
-                    Referer: appConfig.site,
-                },
-            })
-        } catch (error) {
-            if (error.response && error.response.status >= 300 && error.response.status < 400) {
-                const location = error.response.headers.location
-                return { urls: [location] }
-            }
-        }
+        // try {
+        //     // 跳過證書驗證
+        //     const httpsAgent = new https.Agent({ rejectUnauthorized: false })
+        //     const response = await $fetch.get(purl, {
+        //         maxRedirects: 0, // 禁止重定向
+        //         httpsAgent: httpsAgent,
+        //         headers: {
+        //             'User-Agent': UA,
+        //             Referer: appConfig.site,
+        //         },
+        //     })
+        // } catch (error) {
+        //     if (error.response && error.response.status >= 300 && error.response.status < 400) {
+        //         const location = error.response.headers.location
+        //         return jsonify({ urls: [location] })
+        //     }
+        // }
+        return jsonify({ urls: [purl], headers: { Referer: appConfig.site } })
     }
 
-    return { urls: [] }
+    return jsonify({ urls: [] })
 }
 
 async function search(ext) {
+    ext = argsify(ext)
     // 開啟驗證碼了，有空再寫
     // pic https://duanjutt.tv/index.php/verify/index.html?
     let cards = []

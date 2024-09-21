@@ -1,5 +1,4 @@
-const cheerio = require('cheerio')
-const axios = require('axios')
+const cheerio = createCheerio()
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
@@ -12,7 +11,7 @@ let appConfig = {
 async function getConfig() {
     let config = appConfig
     config.tabs = await getTabs()
-    return config
+    return jsonify(config)
 }
 
 async function getTabs() {
@@ -22,7 +21,7 @@ async function getTabs() {
         return ignore.some((element) => className.includes(element))
     }
 
-    const { data } = await axios.get(appConfig.site, {
+    const { data } = await $fetch.get(appConfig.site, {
         headers: {
             'User-Agent': UA,
         },
@@ -48,13 +47,14 @@ async function getTabs() {
 }
 
 async function getCards(ext) {
+    ext = argsify(ext)
     let cards = []
     let { page = 1, href } = ext
 
     const type = href.match(/djtype\/(\d+)\.html/)[1]
     const url = appConfig.site + `/djshow/${type}--------${page}---.html`
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
@@ -77,16 +77,17 @@ async function getCards(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 async function getTracks(ext) {
+    ext = argsify(ext)
     let tracks = []
     let url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
@@ -101,20 +102,21 @@ async function getTracks(ext) {
         pan: panShareUrl,
     })
 
-    return {
+    return jsonify({
         list: [
             {
                 title: '默认分组',
                 tracks,
             },
         ],
-    }
+    })
 }
 
 async function getPlayinfo(ext) {
+    ext = argsify(ext)
     const url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
@@ -125,17 +127,18 @@ async function getPlayinfo(ext) {
     let json = JSON.parse(script)
     let playUrl = json.url
 
-    return { urls: [playUrl] }
+    return jsonify({ urls: [playUrl] })
 }
 
 async function search(ext) {
+    ext = argsify(ext)
     let cards = []
 
     let text = ext.text
     let page = ext.page || 1
     let url = `${appConfig.site}/xvse${text}abcdefghig${page}klm.html`
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
@@ -159,9 +162,9 @@ async function search(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
-module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }
+// module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }
