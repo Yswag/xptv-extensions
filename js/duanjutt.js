@@ -66,7 +66,8 @@ async function getCards(ext) {
     $('.myui-vodlist li').each((_, element) => {
         const href = $(element).find('a.myui-vodlist__thumb').attr('href')
         const title = $(element).find('a.myui-vodlist__thumb').attr('title')
-        const cover = $(element).find('a.myui-vodlist__thumb').attr('data-original')
+        let cover = $(element).find('a.myui-vodlist__thumb').attr('data-original')
+        if (!cover.startsWith('http')) cover = appConfig.site + cover
         const subTitle = $(element).find('.pic-text').text().trim()
         cards.push({
             vod_id: href,
