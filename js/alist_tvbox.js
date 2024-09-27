@@ -62,7 +62,7 @@ async function getCards(ext) {
         cards = [
             {
                 vod_id: '-1',
-                vod_name: '請在單源搜索中輸入alist_tvbox面板的URL',
+                vod_name: '請在單源搜索中輸入tvbox:alist_tvbox的URL',
                 vod_pic: '',
                 vod_remarks: '',
                 ext: {
@@ -71,7 +71,7 @@ async function getCards(ext) {
             },
             {
                 vod_id: '-1',
-                vod_name: '例: http://192.168.5.5:4567',
+                vod_name: '例: tvbox:http://192.168.5.5:4567',
                 vod_pic: '',
                 vod_remarks: '',
                 ext: {
@@ -151,11 +151,12 @@ async function search(ext) {
     ext = argsify(ext)
     let cards = []
 
-    if (ext.text.startsWith('http')) {
+    if (ext.text.startsWith('tvbox:')) {
         function isValid(input) {
             const regex = /^https?:\/\/[^\s\/:]+(:\d+)?$/
             return regex.test(input)
         }
+        ext.text = ext.text.replace('tvbox:', '')
         let host = ext.text
         if (isValid(host)) {
             $cache.set('alist_tvbox_host', host)

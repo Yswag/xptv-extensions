@@ -85,7 +85,7 @@ async function getCards(ext) {
         cards = [
             {
                 vod_id: '-1',
-                vod_name: '請在單源搜索中輸入小雅的URL',
+                vod_name: '請在單源搜索中輸入xiaoya:小雅的URL',
                 vod_pic: '',
                 vod_remarks: '',
                 ext: {
@@ -94,7 +94,7 @@ async function getCards(ext) {
             },
             {
                 vod_id: '-1',
-                vod_name: '例: http://192.168.5.5:5678',
+                vod_name: '例: xiaoya:http://192.168.5.5:5678',
                 vod_pic: '',
                 vod_remarks: '',
                 ext: {
@@ -122,19 +122,23 @@ async function getCards(ext) {
         ]
     } else {
         let host = $cache.get('alist_xiaoya_host')
-        let url = `${host}/sou?num=200&type=video&filter=last&cat=${ext.cat}`
+        let url = `${host}/whatsnew?num=200&type=video&filter=last&cat=${ext.cat}`
         const { data } = await $fetch.get(url)
 
         const $ = cheerio.load(data)
-        const allVideos = $('body > div > ul > a')
+        const allVideos = $('body > div > ul > figure')
         allVideos.each((_, e) => {
-            const href = $(e).text()
-            const [path, name, id, score, img] = href.split('#')
+            const path = $(e).find('figcaption > a').attr('href')
+            const name = $(e).find('figcaption > a').text()
+            let img = $(e).find('img').attr('src')
+            img = img.replace(/https?:\/\//, '')
+            let score = $(e).find('figcaption').text()
+            score = score.match(/豆瓣评分：\s*([\d.]+)/)?.[1] || ''
             cards.push({
-                vod_id: id || path,
-                vod_name: name || path,
-                vod_pic: img || '',
-                vod_remarks: score || '',
+                vod_id: path,
+                vod_name: name,
+                vod_pic: `${host}/image/${img}`,
+                vod_remarks: score,
                 ext: {
                     path: path,
                 },
@@ -247,11 +251,12 @@ async function search(ext) {
     ext = argsify(ext)
     let cards = []
 
-    if (ext.text.startsWith('http')) {
+    if (ext.text.startsWith('xiaoya:')) {
         function isValid(input) {
             const regex = /^https?:\/\/[^\s\/:]+(:\d+)?/
             return regex.test(input)
         }
+        ext.text = ext.text.replace('xiaoya:', '')
         let parts = ext.text.split('@@@')
         let host = parts[0]
         if (isValid(host)) {
