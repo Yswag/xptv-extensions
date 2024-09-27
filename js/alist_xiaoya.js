@@ -133,8 +133,9 @@ async function getCards(ext) {
         const $ = cheerio.load(data)
         const allVideos = $('body > div > ul > figure')
         allVideos.each((_, e) => {
-            const path = $(e).find('figcaption > a').attr('href')
-            const name = $(e).find('figcaption > a').text()
+            let path = $(e).find('figcaption > a').attr('href')
+            path = path.replaceAll('%20', ' ')
+            let name = $(e).find('figcaption > a').text()
             let img = $(e).find('img').attr('src')
             img = img.replace(/https?:\/\//, '')
             let score = $(e).find('figcaption').text()
