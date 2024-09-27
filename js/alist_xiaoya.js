@@ -33,6 +33,9 @@ async function getConfig() {
             },
         ]
     } else {
+        if (!token) {
+            await login()
+        }
         config.site = host
         config.tabs = [
             { name: '每日更新', ext: { cat: 'daily' } },
@@ -68,9 +71,6 @@ async function getConfig() {
             { name: '音乐', ext: { cat: 'music' } },
             { name: '综艺', ext: { cat: 'reality' } },
         ]
-    }
-    if (!token) {
-        await login()
     }
 
     return jsonify(config)
@@ -314,9 +314,6 @@ async function search(ext) {
 }
 
 async function login() {
-    let token = $cache.get('alist_xiaoya_token')
-    if (token) return
-
     let host = $cache.get('alist_xiaoya_host')
     let url = `${host}/api/auth/login`
 
