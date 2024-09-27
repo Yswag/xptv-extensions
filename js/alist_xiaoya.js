@@ -1,4 +1,5 @@
 const cheerio = createCheerio()
+const CryptoJS = createCryptoJS()
 
 // 填入自建的地址 (http://your-ip:port)
 let custom = ''
@@ -33,8 +34,12 @@ async function getConfig() {
             },
         ]
     } else {
+        // 無令牌，登入獲取JWT
         if (!token) {
             await login()
+        } else {
+            // 檢查是否過期
+            await checkToken(token)
         }
         config.site = host
         config.tabs = [
@@ -171,7 +176,7 @@ async function getTracks(ext) {
         }
     )
 
-    const content = argsify(data).data.content
+    const content = argsify(data)?.data?.content
     const folder = []
     content.forEach((e) => {
         if (e.is_dir) folder.push(e.name)
@@ -337,4 +342,51 @@ async function login() {
     )
     let jwt = argsify(data).data.token
     $cache.set('alist_xiaoya_token', jwt)
+    return jwt
+}
+
+async function checkToken() {
+    let token = $cache.get('alist_xiaoya_token')
+    // JWT才檢查，alist令牌不需要
+    if (token.startsWith('eyJ')) {
+        let currentTime = Math.floor(Date.now() / 1000)
+        let exp = decodeJWT(token).payload.exp
+        if (currentTime > exp) {
+            // 過期了重新登入
+            await login()
+        }
+    }
+}
+
+function decodeJWT(token) {
+    function base64UrlDecode(str) {
+        // Replace URL-safe characters with Base64 characters
+        let base64 = str.replace(/-/g, '+').replace(/_/g, '/')
+        // Add padding if necessary
+        while (base64.length % 4) {
+            base64 += '='
+        }
+        // Decode Base64 string
+        return base64Decode(base64)
+    }
+
+    // Split JWT into parts
+    const parts = token.split('.')
+    if (parts.length !== 3) {
+        throw new Error('Invalid JWT token')
+    }
+
+    // Decode header and payload
+    const header = JSON.parse(base64UrlDecode(parts[0]))
+    const payload = JSON.parse(base64UrlDecode(parts[1]))
+
+    return {
+        header: header,
+        payload: payload,
+        signature: parts[2],
+    }
+}
+
+function base64Decode(text) {
+    return CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(text))
 }
