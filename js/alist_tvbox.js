@@ -111,15 +111,18 @@ async function getTracks(ext) {
     const { data } = await $fetch.get(url)
 
     const vod_play_url = argsify(data).list[0].vod_play_url
-    const eps = vod_play_url.split('#')
-    eps.forEach((e) => {
-        const [name, url] = e.split('$')
-        tracks.push({
-            name: name,
-            pan: '',
-            ext: {
-                url: `${host}/play?id=${url || name}&from=open`,
-            },
+    const seasons = vod_play_url.split('$$$')
+    seasons.forEach((e) => {
+        const eps = e.split('#')
+        eps.forEach((e) => {
+            const [name, url] = e.split('$')
+            tracks.push({
+                name: name,
+                pan: '',
+                ext: {
+                    url: `${host}/play?id=${url || name}&from=open`,
+                },
+            })
         })
     })
 
