@@ -1,6 +1,13 @@
+// 填入自建的地址 (http://your-ip:port)
+let custom = ''
+
 let appConfig = {
     ver: 1,
     title: '小雅tvbox',
+}
+
+if (custom) {
+    $cache.set('alist_tvbox_host', custom)
 }
 
 async function getConfig() {
@@ -73,7 +80,7 @@ async function getCards(ext) {
             },
         ]
     } else {
-        let host = ext.url.split('?')[0]
+        let host = $cache.get('alist_tvbox_host')
         let url = ext.url + `&pg=${page}`
         const { data } = await $fetch.get(url)
 
@@ -84,7 +91,7 @@ async function getCards(ext) {
                 vod_pic: e.vod_pic,
                 vod_remarks: e.vod_remarks,
                 ext: {
-                    url: `${host}?ids=${e.vod_id}`,
+                    url: `${host}/vod1?ids=${e.vod_id}`,
                 },
             })
         })
@@ -99,8 +106,7 @@ async function getTracks(ext) {
     ext = argsify(ext)
     let tracks = []
     let url = ext.url
-    let host = ext.url.split('?')[0]
-    let play = host.replace('/vod1', '/play')
+    let host = $cache.get('alist_tvbox_host')
 
     const { data } = await $fetch.get(url)
 
@@ -112,7 +118,7 @@ async function getTracks(ext) {
             name: name,
             pan: '',
             ext: {
-                url: `${play}?id=${url || name}&from=open`,
+                url: `${host}/play?id=${url || name}&from=open`,
             },
         })
     })
@@ -143,22 +149,39 @@ async function search(ext) {
     let cards = []
 
     if (ext.text.startsWith('http')) {
+        function isValid(input) {
+            const regex = /^https?:\/\/[^\s\/:]+(:\d+)?$/
+            return regex.test(input)
+        }
         let host = ext.text
-        $cache.set('alist_tvbox_host', host)
-        cards = [
-            {
-                vod_id: '-1',
-                vod_name: '已添加站點，重新進入',
-                vod_pic: '',
-                vod_remarks: '',
-                ext: {
-                    url: '',
+        if (isValid(host)) {
+            $cache.set('alist_tvbox_host', host)
+            cards = [
+                {
+                    vod_id: '-1',
+                    vod_name: '已添加站點，重新進入',
+                    vod_pic: '',
+                    vod_remarks: '',
+                    ext: {
+                        url: '',
+                    },
                 },
-            },
-        ]
+            ]
+        } else {
+            cards = [
+                {
+                    vod_id: '-1',
+                    vod_name: '無效的URL，請重新輸入',
+                    vod_pic: '',
+                    vod_remarks: '',
+                    ext: {
+                        url: '',
+                    },
+                },
+            ]
+        }
     } else {
         const text = ext.text
-        const page = ext.page || 1
         const host = $cache.get('alist_tvbox_host')
         const url = `${host}/vod1?wd=${text}`
 
