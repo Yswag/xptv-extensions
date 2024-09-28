@@ -268,6 +268,7 @@ async function search(ext) {
         let host = parts[0]
         if (isValid(host)) {
             $cache.set('alist_xiaoya_host', host)
+            $cache.set('alist_xiaoya_token', '') // 每次輸入時同時清空 token
             cards = [
                 {
                     vod_id: '-1',
