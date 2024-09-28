@@ -67,6 +67,8 @@ let defaultConfig = {
     ],
 }
 
+const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
+
 function getXiaoyaTabs() {
     return [
         { name: '每日更新', ext: { cat: 'daily' } },
@@ -107,7 +109,6 @@ function getXiaoyaTabs() {
 async function getConfig() {
     let config = appConfig
     let host = $cache.get('alist_xiaoya_host')
-    let token = $cache.get('alist_xiaoya_token')
 
     if (!host) {
         host = 'undefined'
@@ -117,13 +118,6 @@ async function getConfig() {
         return jsonify(config)
     }
 
-    // 無令牌，登入獲取JWT
-    if (!token) {
-        await login()
-    } else {
-        // 檢查是否過期
-        await checkToken(token)
-    }
     config.site = host
     config.tabs = getXiaoyaTabs()
 
@@ -182,17 +176,12 @@ async function getTracks(ext) {
     let token = $cache.get('alist_xiaoya_token')
     let url = `${host}/api/fs/list`
 
-    const { data } = await $fetch.post(
-        url,
-        {
-            path: path,
-        },
-        {
-            headers: {
-                Authorization: token,
-            },
-        }
-    )
+    let headers = {
+        'User-Agent': UA,
+    }
+    token && token.startsWith('alist-') ? (headers['Authorization'] = token) : $cache.set('alist_xiaoya_token', '')
+
+    const { data } = await $fetch.post(url, { path: path }, { headers: headers })
 
     const content = argsify(data)?.data?.content
     const folder = []
@@ -253,18 +242,12 @@ async function getPlayinfo(ext) {
     let host = $cache.get('alist_xiaoya_host')
     let url = `${host}/api/fs/get`
 
-    const { data } = await $fetch.post(
-        url,
-        {
-            path: path,
-        },
-        {
-            headers: {
-                Authorization: token,
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
-            },
-        }
-    )
+    let headers = {
+        'User-Agent': UA,
+    }
+    token && token.startsWith('alist-') ? (headers['Authorization'] = token) : $cache.set('alist_xiaoya_token', '')
+
+    const { data } = await $fetch.post(url, { path: path }, { headers: headers })
 
     let playUrl = argsify(data).data.raw_url
 
@@ -310,7 +293,7 @@ async function search(ext) {
                 },
             ]
         }
-        if (parts[1]) {
+        if (parts[1] && parts[1].startsWith('alist-')) {
             let token = parts[1]
             $cache.set('alist_xiaoya_token', token)
         }
@@ -345,76 +328,4 @@ async function search(ext) {
     return jsonify({
         list: cards,
     })
-}
-
-async function login() {
-    let host = $cache.get('alist_xiaoya_host')
-    let url = `${host}/api/auth/login`
-
-    const { data } = await $fetch.post(
-        url,
-        {
-            username: 'guest',
-            password: 'guest_Api789',
-        },
-        {
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        }
-    )
-    let jwt = argsify(data).data.token
-    $cache.set('alist_xiaoya_token', jwt)
-    return jwt
-}
-
-async function checkToken() {
-    let token = $cache.get('alist_xiaoya_token')
-
-    if (!isJWT(token)) return
-
-    let currentTime = Math.floor(Date.now() / 1000)
-    let exp = decodeJWT(token).payload.exp
-    if (currentTime > exp) {
-        // 過期了重新登入
-        await login()
-    }
-}
-
-function isJWT(token) {
-    const parts = token.split('.')
-    return parts.length === 3
-}
-
-function decodeJWT(token) {
-    function base64UrlDecode(str) {
-        // Replace URL-safe characters with Base64 characters
-        let base64 = str.replace(/-/g, '+').replace(/_/g, '/')
-        // Add padding if necessary
-        while (base64.length % 4) {
-            base64 += '='
-        }
-        // Decode Base64 string
-        return base64Decode(base64)
-    }
-
-    // Split JWT into parts
-    const parts = token.split('.')
-    if (parts.length !== 3) {
-        throw new Error('Invalid JWT token')
-    }
-
-    // Decode header and payload
-    const header = JSON.parse(base64UrlDecode(parts[0]))
-    const payload = JSON.parse(base64UrlDecode(parts[1]))
-
-    return {
-        header: header,
-        payload: payload,
-        signature: parts[2],
-    }
-}
-
-function base64Decode(text) {
-    return CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(text))
 }
