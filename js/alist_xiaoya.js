@@ -1,5 +1,4 @@
 const cheerio = createCheerio()
-const CryptoJS = createCryptoJS()
 
 // 填入自建的地址 (http://your-ip:port)
 let custom = ''
