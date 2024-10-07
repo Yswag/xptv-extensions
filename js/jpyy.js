@@ -121,10 +121,11 @@ async function search(ext) {
     ext = argsify(ext)
     let cards = []
 
-    const text = encodeURIComponent(ext.text)
+    const text = ext.text
     const page = ext.page || 1
-    const url = `${appConfig.site}/api/mw-movie/anonymous/video/searchByWordPageable?keyword=${text}&pageNum=${page}&pageSize=12&type=false`
-    const headers = getHeader(url)
+    const url = `${appConfig.site}/api/mw-movie/anonymous/video/searchByWordPageable?keyword=${encodeURIComponent(text)}&pageNum=${page}&pageSize=12&type=false`
+    const key = `searchByWordPageable?keyword=${text}&pageNum=${page}&pageSize=12&type=false`
+    const headers = getHeader(key)
 
     const { data } = await $fetch.get(url, {
         headers: headers,
