@@ -1,5 +1,4 @@
-const cheerio = require('cheerio')
-const axios = require('axios')
+const cheerio = createCheerio()
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
@@ -12,7 +11,7 @@ let appConfig = {
 async function getConfig() {
     let config = appConfig
     config.tabs = await getTabs()
-    return config
+    return jsonify(config)
 }
 
 async function getTabs() {
@@ -22,7 +21,7 @@ async function getTabs() {
         return ignore.some((element) => className.includes(element))
     }
 
-    const { data } = await axios.get(appConfig.site, {
+    const { data } = await $fetch.get(appConfig.site, {
         headers: {
             'User-Agent': UA,
         },
@@ -48,6 +47,7 @@ async function getTabs() {
 }
 
 async function getCards(ext) {
+    ext = argsify(ext)
     let cards = []
     let { page = 1, url } = ext
 
@@ -55,7 +55,7 @@ async function getCards(ext) {
         url += `/page/${page}/`
     }
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
@@ -79,16 +79,17 @@ async function getCards(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 async function getTracks(ext) {
+    ext = argsify(ext)
     let tracks = []
     let url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
@@ -129,22 +130,23 @@ async function getTracks(ext) {
         })
     }
 
-    return {
+    return jsonify({
         list: [
             {
                 title: '默认分组',
                 tracks,
             },
         ],
-    }
+    })
 }
 
 async function getPlayinfo(ext) {
+    ext = argsify(ext)
     const { vid, pkey, ref } = ext
 
     // get vkey
     const playerUrl = `https://player.novipnoad.net/v1/?url=${vid}&pkey=${pkey}&ref=${ref}`
-    const player = await axios.get(playerUrl, {
+    const player = await $fetch.get(playerUrl, {
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
             referer: 'https://www.novipnoad.net',
@@ -162,7 +164,7 @@ async function getPlayinfo(ext) {
 
     // get jsapi
     const phpUrl = `https://player.novipnoad.net/v1/player.php?id=${vid}&device=${device}`
-    const phpres = await axios.get(phpUrl, {
+    const phpres = await $fetch.get(phpUrl, {
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
             referer: playerUrl,
@@ -172,7 +174,7 @@ async function getPlayinfo(ext) {
     jsapi = jsapi + '?ckey=' + vkey.ckey.toUpperCase() + '&ref=' + encodeURIComponent(vkey.ref) + '&ip=' + vkey.ip + '&time=' + vkey.time
 
     // get play url
-    const jsres = await axios.get(jsapi, {
+    const jsres = await $fetch.get(jsapi, {
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
             referer: 'https://www.novipnoad.net',
@@ -182,17 +184,18 @@ async function getPlayinfo(ext) {
     playUrl = decryptUrl(playUrl)
     playUrl = playUrl.quality[playUrl.defaultQuality].url
 
-    return { urls: [playUrl] }
+    return jsonify({ urls: [playUrl] })
 }
 
 async function search(ext) {
+    ext = argsify(ext)
     let cards = []
 
     let text = ext.text
     let page = ext.page || 1
     let url = `${appConfig.site}/page/${page}/?s=${text}`
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,/;q=0.8',
             'User-Agent':
@@ -219,9 +222,9 @@ async function search(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 function getVkey(h, u, n, t, e, r) {
@@ -264,7 +267,7 @@ function decryptUrl(_0x395610) {
 
 function _0x2b01e7(_0x12f758, _0xda9b8e) {
     var b = '3.3.1'
-    var _0x3bf069 = atob(_0x12f758)
+    var _0x3bf069 = _atob(_0x12f758)
     for (var _0x19fa71, _0x300ace = [], _0x18815b = 0, _0xe5da02 = '', _0x1d31f3 = 0; 256 > _0x1d31f3; _0x1d31f3++) {
         _0x300ace[_0x1d31f3] = _0x1d31f3
     }
@@ -285,4 +288,41 @@ function _0x2b01e7(_0x12f758, _0xda9b8e) {
     return _0xe5da02
 }
 
-module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }
+function _atob(b64) {
+    var chars = {
+        ascii: function () {
+            return 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+        },
+        indices: function () {
+            if (!this.cache) {
+                this.cache = {}
+                var ascii = chars.ascii()
+
+                for (var c = 0; c < ascii.length; c++) {
+                    var chr = ascii[c]
+                    this.cache[chr] = c
+                }
+            }
+            return this.cache
+        },
+    }
+    var indices = chars.indices(),
+        pos = b64.indexOf('='),
+        padded = pos > -1,
+        len = padded ? pos : b64.length,
+        i = -1,
+        data = ''
+
+    while (i < len) {
+        var code = (indices[b64[++i]] << 18) | (indices[b64[++i]] << 12) | (indices[b64[++i]] << 6) | indices[b64[++i]]
+        if (code !== 0) {
+            data += String.fromCharCode((code >>> 16) & 255, (code >>> 8) & 255, code & 255)
+        }
+    }
+
+    if (padded) {
+        data = data.slice(0, pos - b64.length)
+    }
+
+    return data
+}

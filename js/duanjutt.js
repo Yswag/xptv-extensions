@@ -1,6 +1,4 @@
-const cheerio = require('cheerio')
-const axios = require('axios')
-const https = require('https')
+const cheerio = createCheerio()
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
@@ -13,7 +11,7 @@ let appConfig = {
 async function getConfig() {
     let config = appConfig
     config.tabs = await getTabs()
-    return config
+    return jsonify(config)
 }
 
 async function getTabs() {
@@ -23,7 +21,7 @@ async function getTabs() {
         return ignore.some((element) => className.includes(element))
     }
 
-    const { data } = await axios.get(appConfig.site, {
+    const { data } = await $fetch.get(appConfig.site, {
         headers: {
             'User-Agent': UA,
         },
@@ -49,6 +47,7 @@ async function getTabs() {
 }
 
 async function getCards(ext) {
+    ext = argsify(ext)
     let cards = []
     let { page = 1, url } = ext
 
@@ -56,7 +55,7 @@ async function getCards(ext) {
         url = url.replace('.html', `-${page}.html`)
     }
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
@@ -67,7 +66,8 @@ async function getCards(ext) {
     $('.myui-vodlist li').each((_, element) => {
         const href = $(element).find('a.myui-vodlist__thumb').attr('href')
         const title = $(element).find('a.myui-vodlist__thumb').attr('title')
-        const cover = $(element).find('a.myui-vodlist__thumb').attr('data-original')
+        let cover = $(element).find('a.myui-vodlist__thumb').attr('data-original')
+        if (!cover.startsWith('http')) cover = appConfig.site + cover
         const subTitle = $(element).find('.pic-text').text().trim()
         cards.push({
             vod_id: href,
@@ -80,16 +80,17 @@ async function getCards(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 async function getTracks(ext) {
+    ext = argsify(ext)
     let tracks = []
     let url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
@@ -109,20 +110,21 @@ async function getTracks(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: [
             {
                 title: '默认分组',
                 tracks,
             },
         ],
-    }
+    })
 }
 
 async function getPlayinfo(ext) {
+    ext = argsify(ext)
     const url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
@@ -133,29 +135,31 @@ async function getPlayinfo(ext) {
 
     if (config.encrypt === 0) {
         let purl = config.url
-        try {
-            // 跳過證書驗證
-            const httpsAgent = new https.Agent({ rejectUnauthorized: false })
-            const response = await axios.get(purl, {
-                maxRedirects: 0, // 禁止重定向
-                httpsAgent: httpsAgent,
-                headers: {
-                    'User-Agent': UA,
-                    Referer: appConfig.site,
-                },
-            })
-        } catch (error) {
-            if (error.response && error.response.status >= 300 && error.response.status < 400) {
-                const location = error.response.headers.location
-                return { urls: [location] }
-            }
-        }
+        // try {
+        //     // 跳過證書驗證
+        //     const httpsAgent = new https.Agent({ rejectUnauthorized: false })
+        //     const response = await $fetch.get(purl, {
+        //         maxRedirects: 0, // 禁止重定向
+        //         httpsAgent: httpsAgent,
+        //         headers: {
+        //             'User-Agent': UA,
+        //             Referer: appConfig.site,
+        //         },
+        //     })
+        // } catch (error) {
+        //     if (error.response && error.response.status >= 300 && error.response.status < 400) {
+        //         const location = error.response.headers.location
+        //         return jsonify({ urls: [location] })
+        //     }
+        // }
+        return jsonify({ urls: [purl], headers: { Referer: appConfig.site } })
     }
 
-    return { urls: [] }
+    return jsonify({ urls: [] })
 }
 
 async function search(ext) {
+    ext = argsify(ext)
     // 開啟驗證碼了，有空再寫
     // pic https://duanjutt.tv/index.php/verify/index.html?
     let cards = []
@@ -192,5 +196,3 @@ async function search(ext) {
         list: cards,
     }
 }
-
-module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }

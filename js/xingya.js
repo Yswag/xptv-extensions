@@ -1,10 +1,6 @@
-const fs = require('fs')
-const os = require('os')
-const axios = require('axios')
-const fetch = require('node-fetch')
-const CryptoJS = require('crypto-js')
+// xingya
 
-let cachesPath = `${os.homedir()}/Documents/caches`
+const CryptoJS = createCryptoJS()
 
 let appConfig = {
     ver: 1,
@@ -44,21 +40,22 @@ let appConfig = {
     ],
 }
 
-function getConfig() {
-    return appConfig
+async function getConfig() {
+    return jsonify(appConfig)
 }
 
 async function getCards(ext) {
+    ext = argsify(ext)
     let cards = []
     let { id, page = 1 } = ext
     let url = `${appConfig.site}/cloud/v2/theater/home_page?theater_class_id=${id}&type=1&page_num=${page}&page_size=24`
     let headers = await getHeader()
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: headers,
     })
 
-    let list = data.data.list
+    let list = argsify(data).data.list
     list.forEach((e) => {
         let item = e.theater
         let id = item.id.toString()
@@ -73,22 +70,23 @@ async function getCards(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 async function getTracks(ext) {
+    ext = argsify(ext)
     let tracks = []
     let id = ext.id
     let url = `${appConfig.site}/v2/theater_parent/detail?theater_parent_id=${id}`
     let headers = await getHeader()
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: headers,
     })
 
-    let playlist = data.data.theaters
+    let playlist = argsify(data).data.theaters
     playlist.forEach((e) => {
         let name = e.num.toString()
         let url = e.son_video_url
@@ -101,23 +99,25 @@ async function getTracks(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: [
             {
                 title: '默认分组',
                 tracks,
             },
         ],
-    }
+    })
 }
 
 async function getPlayinfo(ext) {
+    ext = argsify(ext)
     let url = ext.url
 
-    return { urls: [url] }
+    return jsonify({ urls: [url] })
 }
 
 async function search(ext) {
+    ext = argsify(ext)
     let cards = []
 
     let text = ext.text
@@ -131,14 +131,11 @@ async function search(ext) {
     // const { data } = await axios.post(url, body, {
     //     headers: headers,
     // })
-    const resp = await fetch(url, {
-        method: 'POST',
+    const { data } = await $fetch.post(url, body, {
         headers: headers,
-        body: JSON.stringify(body),
     })
-    const data = await resp.json()
 
-    const list = data.data.theater.search_data
+    const list = argsify(data).data.theater.search_data
 
     list.forEach((e) => {
         let item = e
@@ -154,9 +151,9 @@ async function search(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 async function getHeader() {
@@ -186,22 +183,23 @@ async function getHeader() {
         ab_id: '',
         support_h265: '1',
     }
-    let tokenPath = `${cachesPath}/xingya-token.txt`
-    let token = null
-    if (!fs.existsSync(tokenPath)) {
-        token = await getJWT(header)
-        fs.writeFileSync(tokenPath, token, 'utf-8')
-    } else {
-        token = fs.readFileSync(tokenPath, 'utf-8')
+
+    let token = $cache.get('xingya')
+    $print(`token: ${token}`)
+
+    if (token) {
         let currentTime = Math.floor(Date.now() / 1000)
         let exp = decodeJWT(token).payload.exp
-
         if (currentTime > exp) {
-            // token expired
-            token = await getJWT(header)
-            fs.writeFileSync(tokenPath, token, 'utf-8')
+            token = ''
         }
     }
+
+    if (!token) {
+        token = await getJWT(header)
+        $cache.set('xingya', token)
+    }
+
     header['authorization'] = token
     return header
 }
@@ -210,17 +208,16 @@ async function getJWT(header) {
     const login = `https://u.shytkjgs.com/user/v1/account/login`
     let headers = header
     headers['Content-Type'] = 'application/x-www-form-urlencoded'
-    const body = `device=${headers.device_id}`
 
-    // const res = await axios.post(login, body, {
-    //     headers: headers,
-    // })
-    const res = await fetch(login, {
-        method: 'POST',
-        headers: headers,
-        body: body,
-    })
-    const jwt = (await res.json()).data.token
+    const { data } = await $fetch.post(
+        login,
+        { device: headers.device_id },
+        {
+            headers: headers,
+        }
+    )
+    const jwt = argsify(data).data.token
+    $print(`jwt: ${jwt}`)
     return jwt
 }
 
@@ -256,5 +253,3 @@ function decodeJWT(token) {
 function base64Decode(text) {
     return CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(text))
 }
-
-module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }

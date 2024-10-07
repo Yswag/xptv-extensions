@@ -1,11 +1,6 @@
-const fs = require('fs')
-const os = require('os')
-const cheerio = require('cheerio')
-const axios = require('axios')
-const CryptoJS = require('crypto-js')
+const cheerio = createCheerio()
+const CryptoJS = createCryptoJS()
 
-const cachesPath = `${os.homedir()}/Documents/caches`
-const jsonPath = `${cachesPath}/iyf-keys.json`
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.3'
 
 let appConfig = {
@@ -60,11 +55,13 @@ let appConfig = {
 
 async function getConfig() {
     await updateKeys()
-    return appConfig
+    return jsonify(appConfig)
 }
 
 async function getCards(ext) {
-    const publicKey = JSON.parse(fs.readFileSync(jsonPath)).publicKey
+    ext = argsify(ext)
+    let keys = $cache.get('iyf-keys')
+    const publicKey = JSON.parse(keys).publicKey
     let cards = []
     let { id, page = 1 } = ext
 
@@ -72,12 +69,12 @@ async function getCards(ext) {
     let params = url.split('?')[1]
     url += `&vv=${getSignature(params)}&pub=${publicKey}`
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
-    let list = data.data.info[0].result
+    let list = argsify(data).data.info[0].result
 
     list.forEach((e) => {
         cards.push({
@@ -91,13 +88,14 @@ async function getCards(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 async function getTracks(ext) {
-    const publicKey = JSON.parse(fs.readFileSync(jsonPath)).publicKey
+    ext = argsify(ext)
+    const publicKey = JSON.parse($cache.get('iyf-keys')).publicKey
     let tracks = []
     let key = ext.key
 
@@ -105,13 +103,13 @@ async function getTracks(ext) {
     let params = url.split('?')[1]
     url += `&vv=${getSignature(params)}&pub=${publicKey}`
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    let playlist = data.data.info[0].playList
+    let playlist = argsify(data).data.info[0].playList
     playlist.forEach((e) => {
         const name = e.name
         const key = e.key
@@ -124,30 +122,31 @@ async function getTracks(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: [
             {
                 title: '默认分组',
                 tracks,
             },
         ],
-    }
+    })
 }
 
 async function getPlayinfo(ext) {
-    const publicKey = JSON.parse(fs.readFileSync(jsonPath)).publicKey
+    ext = argsify(ext)
+    const publicKey = JSON.parse($cache.get('iyf-keys')).publicKey
     let key = ext.key
     let url = `${appConfig.site}/v3/video/play?cinema=1&id=${key}&a=0&lang=none&usersign=1&region=GL.&device=1&isMasterSupport=1`
     let params = url.split('?')[1]
     url += `&vv=${getSignature(params)}&pub=${publicKey}`
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    let paths = data.data.info[0].flvPathList
+    let paths = argsify(data).data.info[0].flvPathList
     let playUrl = ''
     paths.forEach(async (e) => {
         if (e.isHls) {
@@ -157,23 +156,24 @@ async function getPlayinfo(ext) {
         }
     })
 
-    return { urls: [playUrl] }
+    return jsonify({ urls: [playUrl] })
 }
 
 async function search(ext) {
+    ext = argsify(ext)
     let cards = []
 
     const text = ext.text
     const page = ext.page || 1
     const url = `https://rankv21.iyf.tv/v3/list/briefsearch?tags=${encodeURIComponent(text)}&orderby=4&page=${page}&size=10&desc=0&isserial=-1&istitle=true`
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    let list = data.data.info[0].result
+    let list = argsify(data).data.info[0].result
     list.forEach((e) => {
         cards.push({
             vod_id: e.contxt,
@@ -186,14 +186,14 @@ async function search(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 async function updateKeys() {
     let baseUrl = 'https://www.iyf.tv'
-    let { data } = await axios.get(baseUrl, {
+    let { data } = await $fetch.get(baseUrl, {
         headers: {
             'User-Agent': UA,
         },
@@ -211,13 +211,13 @@ async function updateKeys() {
             }
             const jsonData = JSON.stringify(keys, null, 2)
 
-            fs.writeFileSync(jsonPath, jsonData)
+            $cache.set('iyf-keys', jsonData)
         }
     })
 }
 
 function getSignature(query) {
-    const publicKey = JSON.parse(fs.readFileSync(jsonPath)).publicKey
+    const publicKey = JSON.parse($cache.get('iyf-keys')).publicKey
     const privateKey = getPrivateKey()
     const input = publicKey + '&' + query.toLowerCase() + '&' + privateKey
 
@@ -225,10 +225,8 @@ function getSignature(query) {
 }
 
 function getPrivateKey() {
-    const privateKey = JSON.parse(fs.readFileSync(jsonPath)).privateKey
+    const privateKey = JSON.parse($cache.get('iyf-keys')).privateKey
     const timePublicKeyIndex = Date.now()
 
     return privateKey[timePublicKeyIndex % privateKey.length]
 }
-
-module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }

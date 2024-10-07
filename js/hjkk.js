@@ -1,6 +1,3 @@
-const cheerio = require('cheerio')
-const axios = require('axios')
-
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
 let appConfig = {
@@ -32,29 +29,29 @@ let appConfig = {
     ],
 }
 
-function getConfig() {
-    return appConfig
+async function getConfig() {
+    return jsonify(appConfig)
 }
 
 async function getCards(ext) {
+    ext = argsify(ext)
     let cards = []
     let { id, page = 1, url } = ext
 
     url = url.replace('@id@', id).replace('@page@', page)
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    const $ = cheerio.load(data)
-
-    $('.module-poster-item').each((_, element) => {
-        const href = $(element).attr('href')
-        const title = $(element).attr('title')
-        const cover = $(element).find('.module-item-pic img').attr('data-original')
-        const subTitle = $(element).find('.module-item-note').text()
+    const elems = $html.elements(data, '.module-poster-item')
+    elems.forEach((element) => {
+        const href = $html.attr(element, 'a', 'href')
+        const title = $html.attr(element, 'a', 'title')
+        const cover = $html.attr(element, '.module-item-pic img', 'data-original')
+        const subTitle = $html.text(element, '.module-item-note')
         cards.push({
             vod_id: href,
             vod_name: title,
@@ -66,28 +63,28 @@ async function getCards(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 async function getTracks(ext) {
+    ext = argsify(ext)
     let tracks = []
     let url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    const $ = cheerio.load(data)
-
-    $('#panel1 .module-play-list-link').each((_, e) => {
-        const name = $(e).find('span').text()
-        const href = $(e).attr('href')
+    const elems = $html.elements(data, '#panel1 .module-play-list-link')
+    elems.forEach((e) => {
+        const name = $html.text(e, 'span')
+        const href = $html.attr(e, 'a', 'href')
         tracks.push({
-            name: `${name}`,
+            name: name,
             pan: '',
             ext: {
                 url: `${appConfig.site}${href}`,
@@ -95,53 +92,53 @@ async function getTracks(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: [
             {
                 title: '默认分组',
                 tracks,
             },
         ],
-    }
+    })
 }
 
 async function getPlayinfo(ext) {
+    ext = argsify(ext)
     const url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    const $ = cheerio.load(data)
-    let script = $('.player-box-main script').eq(0).text().replace('var player_aaaa=', '')
-    let json = JSON.parse(script)
-    let playUrl = json.url
+    const html = data.match(/r player_.*?=(.*?)</)[1]
+    const json = JSON.parse(html)
+    const playUrl = json.url
 
-    return { urls: [playUrl] }
+    return jsonify({ urls: [playUrl] })
 }
 
 async function search(ext) {
+    ext = argsify(ext)
     let cards = []
 
     let text = ext.text
     let page = ext.page || 1
     let url = `${appConfig.site}/xvse${text}abcdefghig${page}klm.html`
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    const $ = cheerio.load(data)
-
-    $('.module-card-item').each((_, element) => {
-        const href = $(element).find('.module-card-item-poster').attr('href')
-        const title = $(element).find('.module-card-item-title strong').text()
-        const cover = $(element).find('.module-item-pic img').attr('data-original')
-        const subTitle = $(element).find('.module-item-note').text()
+    const elems = $html.elements(data, '.module-card-item')
+    elems.forEach((element) => {
+        const href = $html.attr(element, '.module-card-item-poster', 'href')
+        const title = $html.text(element, '.module-card-item-title strong')
+        const cover = $html.attr(element, '.module-item-pic img', 'data-original')
+        const subTitle = $html.text(element, '.module-item-note')
         cards.push({
             vod_id: href,
             vod_name: title,
@@ -153,9 +150,7 @@ async function search(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
-
-module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }

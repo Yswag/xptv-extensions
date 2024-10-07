@@ -1,18 +1,9 @@
-// demo test
-
-// const fetch = require('node-fetch')
-const cheerio = require('cheerio')
-const fs = require('fs')
-const os = require('os')
-const axios = require('axios')
-const CryptoJS = require('crypto-js')
-// const _ = require('lodash')
-
-let cachesPath = `${os.homedir()}/Documents/caches`
+// tv demo test
+// const { $html, argsify, jsonify, $fetch, $print, $cache } = require('../test/libs.js')
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
 
-let appConfig = {
+const appConfig = {
     ver: 1,
     title: '在线之家',
     site: 'https://www.zxzja.com',
@@ -34,20 +25,23 @@ let appConfig = {
     ],
 }
 
-function getConfig() {
-    return appConfig
+async function getConfig() {
+    return jsonify(appConfig)
 }
 
 async function getCards(ext) {
+    ext = argsify(ext)
     var cards = []
     let id = ext.id
     let page = ext.page || 1
 
+    $print(`args: ${id} ${page}`)
+
     var url = 'https://www.zxzja.com/'
     if (id == 0 && page > 1) {
-        return {
+        return jsonify({
             list: cards,
-        }
+        })
     }
 
     if (id > 0) {
@@ -58,7 +52,7 @@ async function getCards(ext) {
     }
 
     // 发送请求
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             Referer: 'https://www.zxzja.com/',
             'User-Agent': UA,
@@ -66,14 +60,13 @@ async function getCards(ext) {
     })
 
     // 加载 HTML
-    const $ = cheerio.load(data)
+    const elems = $html.elements(data, 'a.lazyload')
+    elems.forEach((element) => {
+        const href = $html.attr(element, 'a', 'href')
+        const title = $html.attr(element, 'a', 'title')
+        const cover = $html.attr(element, 'a', 'data-original')
+        const subTitle = $html.text(element, '.text-right')
 
-    // 解析数据，例如提取标题
-    $('a.lazyload').each((index, element) => {
-        const href = $(element).attr('href')
-        const title = $(element).attr('title')
-        const cover = $(element).attr('data-original')
-        const subTitle = $(element).find('.text-right').text()
         if (href.startsWith('/detail/')) {
             cards.push({
                 vod_id: href.replace(/.*?\/detail\/(.*).html/g, '$1'),
@@ -87,17 +80,18 @@ async function getCards(ext) {
         }
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 async function getTracks(ext) {
+    ext = argsify(ext)
     var tracks = []
     let url = ext.url
 
     // 发送请求
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             Referer: 'https://www.zxzja.com/',
             'User-Agent': UA,
@@ -105,12 +99,12 @@ async function getTracks(ext) {
     })
 
     // 加载 HTML
-    const $ = cheerio.load(data)
+    const elems = $html.elements(data, '.stui-content__playlist > li > a')
 
     // 解析数据，例如提取标题
-    $('.stui-content__playlist > li > a').each((index, element) => {
-        const href = $(element).attr('href')
-        const name = $(element).text()
+    elems.forEach((element) => {
+        const href = $html.attr(element, 'a', 'href')
+        const name = $html.text(element, 'a')
         if (href && name && name !== '合集') {
             tracks.push({
                 name,
@@ -122,22 +116,23 @@ async function getTracks(ext) {
         }
     })
 
-    return {
+    return jsonify({
         list: [
             {
                 title: '默认分组',
                 tracks,
             },
         ],
-    }
+    })
 }
 
 async function getPlayinfo(ext) {
+    ext = argsify(ext)
     var plays = []
     let url = ext.url
 
     // 发送请求
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
@@ -153,11 +148,11 @@ async function getPlayinfo(ext) {
     } else if (json.encrypt == '2') {
         playurl = decodeURIComponent(Buffer.from(url, 'base64').toString('utf-8'))
     }
-    console.log('playurl', playurl)
+    $print(`playurl: ${playurl}`)
     if (playurl.indexOf('m3u8') >= 0 || playurl.indexOf('mp4') >= 0) {
-        return { urls: [playurl] }
+        return jsonify({ urls: [playurl] })
     } else if (from.indexOf('line3') >= 0 || from.indexOf('line5') >= 0) {
-        const { data } = await axios.get(playurl, {
+        const { data } = await $fetch.get(playurl, {
             headers: {
                 Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
                 'Accept-Encoding': 'gzip, deflate, br',
@@ -182,21 +177,22 @@ async function getPlayinfo(ext) {
             temp += String.fromCharCode(parseInt(code[i] + code[i + 0x1], 0x10))
         }
         const purl = temp.substring(0x0, (temp.length - 0x7) / 0x2) + temp.substring((temp.length - 0x7) / 0x2 + 0x7)
-        console.debug('***在线之家purl =====>' + purl) // js_debug.log
-        return { urls: [purl] }
+        $print('***在线之家purl =====>' + purl) // js_debug.log
+        return jsonify({ urls: [purl] })
     }
-    return { urls: [] }
+    return jsonify({ urls: [] })
 }
 
 async function search(ext) {
+    ext = argsify(ext)
     var cards = []
 
     let text = ext.text // 搜索文本
     let page = ext.page || 1
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
-module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }
+// module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }

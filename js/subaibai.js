@@ -1,6 +1,5 @@
-const cheerio = require('cheerio')
-const axios = require('axios')
-const CryptoJS = require('crypto-js')
+const cheerio = createCheerio()
+const CryptoJS = createCryptoJS()
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1'
 
@@ -13,7 +12,7 @@ let appConfig = {
 async function getConfig() {
     let config = appConfig
     config.tabs = await getTabs()
-    return config
+    return jsonify(config)
 }
 
 async function getTabs() {
@@ -23,24 +22,22 @@ async function getTabs() {
         return ignore.some((element) => className.includes(element))
     }
 
-    const { data } = await axios.get(appConfig.site, {
+    const { data } = await $fetch.get(appConfig.site, {
         headers: {
             'User-Agent': UA,
         },
     })
-    const $ = cheerio.load(data)
 
-    let allClass = $('ul.navlist a')
-    allClass.each((i, e) => {
-        const name = $(e).text()
-        const href = $(e).attr('href')
+    let allClass = $html.elements(data, 'ul.navlist a')
+    allClass.forEach((e) => {
+        const name = $html.text(e, 'a')
+        const href = $html.attr(e, 'a', 'href')
         const isIgnore = isIgnoreClassName(name)
         if (isIgnore) return
 
         list.push({
             name,
             ext: {
-                id: i.toString(),
                 url: href,
             },
         })
@@ -50,27 +47,27 @@ async function getTabs() {
 }
 
 async function getCards(ext) {
+    ext = argsify(ext)
     let cards = []
-    let { id, page = 1, url } = ext
+    let { page = 1, url } = ext
 
     if (page > 1) {
         url += `/page/${page}`
     }
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    const $ = cheerio.load(data)
-
-    $('.bt_img.mi_ne_kd.mrb li').each((_, element) => {
-        const href = $(element).find('a').attr('href')
-        const title = $(element).find('img.thumb').attr('alt')
-        const cover = $(element).find('img.thumb').attr('data-original')
-        const subTitle = $(element).find('.jidi span').text()
-        const hdinfo = $(element).find('.hdinfo .qb').text()
+    let elem = $html.elements(data, '.bt_img.mi_ne_kd.mrb li')
+    elem.forEach((element) => {
+        const href = $html.attr(element, 'a', 'href')
+        const title = $html.attr(element, 'img.thumb', 'alt')
+        const cover = $html.attr(element, 'img.thumb', 'data-original')
+        const subTitle = $html.text(element, '.jidi span')
+        const hdinfo = $html.text(element, '.hdinfo.qb')
         cards.push({
             vod_id: href,
             vod_name: title,
@@ -82,28 +79,28 @@ async function getCards(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 async function getTracks(ext) {
+    ext = argsify(ext)
     let tracks = []
     let url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    const $ = cheerio.load(data)
-
-    $('.paly_list_btn a').each((_, e) => {
-        const name = $(e).text()
-        const href = $(e).attr('href')
+    let playlist = $html.elements(data, '.paly_list_btn a')
+    playlist.forEach((e) => {
+        const name = $html.text(e, 'a')
+        const href = $html.attr(e, 'a', 'href')
         tracks.push({
-            name: `${name}`,
+            name: name,
             pan: '',
             ext: {
                 url: href,
@@ -111,20 +108,21 @@ async function getTracks(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: [
             {
                 title: '默认分组',
                 tracks,
             },
         ],
-    }
+    })
 }
 
 async function getPlayinfo(ext) {
+    ext = argsify(ext)
     const url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
@@ -136,7 +134,7 @@ async function getPlayinfo(ext) {
         console.log('method 1')
 
         const iframeHtml = (
-            await axios.get($(iframe[0]).attr('src'), {
+            await $fetch.get($(iframe[0]).attr('src'), {
                 headers: {
                     Referer: url,
                     'User-Agent': UA,
@@ -165,18 +163,19 @@ async function getPlayinfo(ext) {
         const result = eval(group[1] + group[2])
         playUrl = result.match(/url:.*?['"](.*?)['"]/)[1]
 
-        return { urls: [playUrl] }
+        return jsonify({ urls: [playUrl] })
     }
 }
 
 async function search(ext) {
+    ext = argsify(ext)
     let cards = []
 
     let text = ext.text
     let page = ext.page || 1
     let url = `${appConfig.site}/page/${page}?s=${text}`
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
@@ -201,9 +200,7 @@ async function search(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
-
-module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }

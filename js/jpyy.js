@@ -1,7 +1,4 @@
-const cheerio = require('cheerio')
-const axios = require('axios')
-const CryptoJS = require('crypto-js')
-
+const CryptoJS = createCryptoJS()
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
 let appConfig = {
@@ -36,22 +33,23 @@ let appConfig = {
     ],
 }
 
-function getConfig() {
-    return appConfig
+async function getConfig() {
+    return jsonify(appConfig)
 }
 
 async function getCards(ext) {
+    ext = argsify(ext)
     let cards = []
     let { id, page = 1 } = ext
     const url = `${appConfig.site}/api/mw-movie/anonymous/video/list?pageNum=${page}&pageSize=30&sort=1&sortBy=1&type1=${id}`
 
     const headers = getHeader(url)
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: headers,
     })
 
-    data.data.list.forEach((e) => {
+    argsify(data).data.list.forEach((e) => {
         const id = e.vodId
         cards.push({
             vod_id: id.toString(),
@@ -64,30 +62,29 @@ async function getCards(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 async function getTracks(ext) {
+    ext = argsify(ext)
     let tracks = []
     let url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
             Referer: appConfig.site + '/',
         },
     })
 
-    const $ = cheerio.load(data)
-
-    let playlist = $('div[class^="detail__PlayListBox"]').find('div.listitem a')
-    playlist.each((_, e) => {
-        const name = $(e).text()
-        const href = $(e).attr('href')
+    const playlist = $html.elements(data, 'div[class^="detail__PlayListBox"] div.listitem a')
+    playlist.forEach((e) => {
+        const name = $html.text(e, 'a')
+        const href = $html.attr(e, 'a', 'href')
         tracks.push({
-            name: `${name}`,
+            name: name,
             pan: '',
             ext: {
                 url: `${appConfig.site}${href}`,
@@ -95,31 +92,33 @@ async function getTracks(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: [
             {
                 title: '默认分组',
                 tracks,
             },
         ],
-    }
+    })
 }
 
 async function getPlayinfo(ext) {
+    ext = argsify(ext)
     const [, id, sid] = ext.url.match(/vod\/play\/(.*)\/sid\/(.*)/)
     const url = `${appConfig.site}/api/mw-movie/anonymous/v1/video/episode/url?id=${id}&nid=${sid}`
     const headers = getHeader(url)
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: headers,
     })
 
-    let playUrl = data.data.playUrl
+    let playUrl = argsify(data).data.playUrl
 
-    return { urls: [playUrl] }
+    return jsonify({ urls: [playUrl] })
 }
 
 async function search(ext) {
+    ext = argsify(ext)
     let cards = []
 
     const text = ext.text
@@ -127,11 +126,11 @@ async function search(ext) {
     const url = `${appConfig.site}/api/mw-movie/anonymous/video/searchByWordPageable?keyword=${text}&pageNum=${page}&pageSize=12&type=false`
     const headers = getHeader(url)
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: headers,
     })
 
-    data.data.list.forEach((e) => {
+    argsify(data).data.list.forEach((e) => {
         const id = e.vodId
         cards.push({
             vod_id: id.toString(),
@@ -144,9 +143,9 @@ async function search(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 function getHeader(url) {
@@ -162,11 +161,9 @@ function getHeader(url) {
     const headers = {
         'User-Agent': UA,
         deviceId: getUUID(),
-        t: t,
+        t: t.toString(),
         sign: CryptoJS.SHA1(CryptoJS.MD5(signStr).toString()).toString(),
     }
 
     return headers
 }
-
-module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }

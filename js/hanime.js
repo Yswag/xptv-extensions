@@ -4,8 +4,8 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 let appConfig = {
     ver: 1,
-    title: '麻豆社',
-    site: 'https://madou.club',
+    title: 'hanime',
+    site: 'https://hanime1.me',
 }
 
 async function getConfig() {
@@ -16,7 +16,7 @@ async function getConfig() {
 
 async function getTabs() {
     let list = []
-    let ignore = ['首页', '其他', '热门标签', '筛选']
+    let ignore = ['新番預告', 'H漫畫']
     function isIgnoreClassName(className) {
         return ignore.some((element) => className.includes(element))
     }
@@ -28,8 +28,9 @@ async function getTabs() {
     })
     const $ = cheerio.load(data)
 
-    let allClass = $('.sitenav a')
-    allClass.each((_, e) => {
+    let allClass = $('#main-nav-home > a.nav-item')
+
+    allClass.each((i, e) => {
         const name = $(e).text()
         const href = $(e).attr('href')
         const isIgnore = isIgnoreClassName(name)
@@ -52,7 +53,7 @@ async function getCards(ext) {
     let { page = 1, url } = ext
 
     if (page > 1) {
-        url = url + '/page/' + page
+        url += `&page=${page}`
     }
 
     const { data } = await $fetch.get(url, {
@@ -62,17 +63,19 @@ async function getCards(ext) {
     })
 
     const $ = cheerio.load(data)
+    let videolist = $('.home-rows-videos-wrapper > a')
+    if (videolist.length === 0) videolist = $('.content-padding-new > .row > .search-doujin-videos.col-xs-6')
 
-    $('.excerpts-wrapper article').each((_, element) => {
-        const href = $(element).find('a').attr('href')
-        const title = $(element).find('h2').text()
-        const cover = $(element).find('img').attr('data-src')
-        const subTitle = $(element).find('.post-view').text().trim()
+    videolist.each((_, element) => {
+        const href = $(element).attr('href') || $(element).find('.overlay').attr('href')
+        const title = $(element).find('.home-rows-videos-title').text() || $(element).find('.card-mobile-title').text()
+        let cover = $(element).find('img').attr('src')
+        if (cover.includes('background')) cover = $(element).find('img').eq(1).attr('src')
         cards.push({
             vod_id: href,
             vod_name: title,
             vod_pic: cover,
-            vod_remarks: subTitle,
+            vod_remarks: '',
             ext: {
                 url: href,
             },
@@ -88,31 +91,34 @@ async function getTracks(ext) {
     ext = argsify(ext)
     let tracks = []
     let url = ext.url
-
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
-
-    const $ = cheerio.load(data)
-
-    let w = $('.article-content iframe').attr('src')
-    let dash = w.match(/^(https?:\/\/[^\/]+)/)[1]
-    let dashResp = (await $fetch.get(w, { headers: { 'User-Agent': UA } })).data
-    let $2 = cheerio.load(dashResp)
-    let html2 = $2('body script').eq(5).text()
-    let token = html2.match(/var token = "(.+)";/)[1]
-    let m3u8 = html2.match(/var m3u8 = '(.+)';/)[1]
-
-    let playUrl = dash + m3u8 + '?token=' + token
     tracks.push({
         name: '播放',
         pan: '',
         ext: {
-            url: playUrl,
+            url: url,
         },
     })
+
+    // const { data } = await $fetch.get(url, {
+    //     headers: {
+    //         'User-Agent': UA,
+    //     },
+    // })
+
+    // const $ = cheerio.load(data)
+    // const playlist = $('#content-div .single-show-list #playlist-scroll > div')
+
+    // playlist.each((_, e) => {
+    //     const name = $(e).find('.card-mobile-title').text()
+    //     const href = $(e).find('a.overlay').attr('href')
+    //     tracks.push({
+    //         name: name,
+    //         pan: '',
+    //         ext: {
+    //             url: href,
+    //         },
+    //     })
+    // })
 
     return jsonify({
         list: [
@@ -128,7 +134,18 @@ async function getPlayinfo(ext) {
     ext = argsify(ext)
     const url = ext.url
 
-    return jsonify({ urls: [url] })
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
+
+    const $ = cheerio.load(data)
+    const json = $('script[type=application/ld+json]').text()
+
+    let playUrl = json.match(/contentUrl":\s?"(.*?)",/)[1]
+
+    return jsonify({ urls: [playUrl] })
 }
 
 async function search(ext) {
@@ -137,26 +154,24 @@ async function search(ext) {
 
     let text = ext.text
     let page = ext.page || 1
-    let url = appConfig.site + `/page/${page}?s=${text}`
+    let url = `${appConfig.site}/search?query=${text}&page=${page}`
 
     const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
-
     const $ = cheerio.load(data)
 
-    $('.excerpts-wrapper article').each((_, element) => {
-        const href = $(element).find('a').attr('href')
-        const title = $(element).find('h2').text()
-        const cover = $(element).find('img').attr('data-src')
-        const subTitle = $(element).find('.post-view').text().trim()
+    $('.search-doujin-videos').each((_, element) => {
+        const href = $(element).find('.overlay').attr('href')
+        const title = $(element).find('.card-mobile-title').text()
+        const cover = $(element).find('img').eq(1).attr('src')
         cards.push({
             vod_id: href,
             vod_name: title,
             vod_pic: cover,
-            vod_remarks: subTitle,
+            vod_remarks: '',
             ext: {
                 url: href,
             },
