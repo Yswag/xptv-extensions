@@ -120,7 +120,7 @@ async function search(ext) {
     ext = argsify(ext)
     let cards = []
 
-    let text = ext.text
+    let text = encodeURIComponent(ext.text)
     let url = appConfig.site + '/v3/search'
     let headers = await getHeader()
     headers['Content-Type'] = 'application/json'

@@ -123,7 +123,7 @@ async function search(ext) {
     ext = argsify(ext)
     let cards = []
 
-    let text = ext.text
+    let text = encodeURIComponent(ext.text)
     let page = ext.page || 1
     let url = `${appConfig.site}/xvse${text}abcdefghig${page}klm.html`
 

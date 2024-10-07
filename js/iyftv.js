@@ -163,7 +163,7 @@ async function search(ext) {
     ext = argsify(ext)
     let cards = []
 
-    const text = ext.text
+    const text = encodeURIComponent(ext.text)
     const page = ext.page || 1
     const url = `https://rankv21.iyf.tv/v3/list/briefsearch?tags=${encodeURIComponent(text)}&orderby=4&page=${page}&size=10&desc=0&isserial=-1&istitle=true`
 

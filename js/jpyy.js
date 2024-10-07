@@ -121,7 +121,7 @@ async function search(ext) {
     ext = argsify(ext)
     let cards = []
 
-    const text = ext.text
+    const text = encodeURIComponent(ext.text)
     const page = ext.page || 1
     const url = `${appConfig.site}/api/mw-movie/anonymous/video/searchByWordPageable?keyword=${text}&pageNum=${page}&pageSize=12&type=false`
     const headers = getHeader(url)

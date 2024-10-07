@@ -164,7 +164,7 @@ async function search(ext) {
     const ocrApi = 'https://api.nn.ci/ocr/b64/json'
     let cookie = 'PHPSESSID=' + generatePHPSESSID()
 
-    let text = ext.text
+    let text = encodeURIComponent(ext.text)
     // let page = ext.page || 1
     let validate = appConfig.site + '/include/vdimgck.php'
     let url = appConfig.site + '/search.php?scheckAC=check&page=&searchtype=&order=&tid=&area=&year=&letter=&yuyan=&state=&money=&ver=&jq='

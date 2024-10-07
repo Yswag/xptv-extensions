@@ -302,7 +302,7 @@ async function search(ext) {
         })
     }
 
-    const text = ext.text
+    const text = encodeURIComponent(ext.text)
     const host = $cache.get('alist_xiaoya_host')
     const url = `${host}/sou?box=${text}&type=video&url=`
 

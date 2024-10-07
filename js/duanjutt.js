@@ -164,7 +164,7 @@ async function search(ext) {
     // pic https://duanjutt.tv/index.php/verify/index.html?
     let cards = []
 
-    let text = ext.text
+    let text = encodeURIComponent(ext.text)
     let page = ext.page || 1
     let url = `${appConfig.site}/?s=${text}`
 

@@ -189,7 +189,7 @@ async function search(ext) {
             ]
         }
     } else {
-        const text = ext.text
+        const text = encodeURIComponent(ext.text)
         const host = $cache.get('alist_tvbox_host')
         const url = `${host}/vod1?wd=${text}`
 

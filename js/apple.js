@@ -123,7 +123,7 @@ async function getPlayinfo(ext) {
 async function search(ext) {
     let cards = []
 
-    const text = ext.text
+    const text = encodeURIComponent(ext.text)
     const page = ext.page || 1
     const url = `${appConfig.site}/api.php/v2.vod/androidsearch10086?page=${page}&wd=${text}`
 
