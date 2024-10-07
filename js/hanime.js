@@ -152,7 +152,7 @@ async function search(ext) {
     ext = argsify(ext)
     let cards = []
 
-    let text = ext.text
+    let text = encodeURIComponent(ext.text)
     let page = ext.page || 1
     let url = `${appConfig.site}/search?query=${text}&page=${page}`
 
@@ -163,7 +163,7 @@ async function search(ext) {
     })
     const $ = cheerio.load(data)
 
-    $('.search-doujin-videos').each((_, element) => {
+    $('.col-xs-6').each((_, element) => {
         const href = $(element).find('.overlay').attr('href')
         const title = $(element).find('.card-mobile-title').text()
         const cover = $(element).find('img').eq(1).attr('src')
