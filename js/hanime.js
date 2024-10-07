@@ -39,7 +39,7 @@ async function getTabs() {
         list.push({
             name,
             ext: {
-                url: href,
+                url: encodeURI(href),
             },
         })
     })
