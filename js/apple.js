@@ -1,5 +1,6 @@
-const axios = require('axios')
-const CryptoJS = require('crypto-js')
+// const axios = require('axios')
+// const CryptoJS = require('crypto-js')
+const CryptoJS = createCryptoJS()
 
 const UA = 'okhttp/3.12.11'
 
@@ -36,22 +37,23 @@ let appConfig = {
 }
 
 function getConfig() {
-    return appConfig
+    return jsonify(appConfig)
 }
 
 async function getCards(ext) {
+    ext = argsify(ext)
     let cards = []
     let { id, page = 1 } = ext
 
     const url = appConfig.site + `/api.php/v2.vod/androidfilter10086?page=${page}&type=${id}`
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    data.data.forEach((e) => {
+    argsify(data).data.forEach((e) => {
         cards.push({
             vod_id: e.id.toString(),
             vod_name: e.name,
@@ -63,22 +65,23 @@ async function getCards(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
 async function getTracks(ext) {
+    ext = argsify(ext)
     let tracks = []
     let url = ext.url
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    let playlist = data.data.urls
+    let playlist = argsify(data).data.urls
     playlist.forEach((e) => {
         const name = e.key
         const url = e.url
@@ -91,17 +94,18 @@ async function getTracks(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: [
             {
                 title: '默认分组',
                 tracks,
             },
         ],
-    }
+    })
 }
 
 async function getPlayinfo(ext) {
+    ext = argsify(ext)
     let key = ext.key
     const url = `http://c.xpgtv.net/m3u8/${key}.m3u8`
     const headers = {
@@ -117,23 +121,24 @@ async function getPlayinfo(ext) {
     const str = `||||DC6FFCB55FA||861824127032820||12702720||Asus/Asus/ASUS_I003DD:7.1.2/20171130.376229:user/release-keysXPGBOX com.phoenix.tv1.3.3${headers.timestamp}`
     headers.hash = CryptoJS.MD5(str).toString().toLowerCase().substring(8, 12)
 
-    return { urls: [url], headers: headers }
+    return jsonify({ urls: [url], headers: headers })
 }
 
 async function search(ext) {
+    ext = argsify(ext)
     let cards = []
 
     const text = encodeURIComponent(ext.text)
     const page = ext.page || 1
     const url = `${appConfig.site}/api.php/v2.vod/androidsearch10086?page=${page}&wd=${text}`
 
-    const { data } = await axios.get(url, {
+    const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
     })
 
-    data.data.forEach((e) => {
+    argsify(data).data.forEach((e) => {
         cards.push({
             vod_id: e.id.toString(),
             vod_name: e.name,
@@ -145,9 +150,9 @@ async function search(ext) {
         })
     })
 
-    return {
+    return jsonify({
         list: cards,
-    }
+    })
 }
 
-module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }
+// module.exports = { getConfig, getCards, getTracks, getPlayinfo, search }
