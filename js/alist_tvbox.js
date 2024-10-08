@@ -10,6 +10,8 @@ if (custom) {
     $cache.set('alist_tvbox_host', custom)
 }
 
+let UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
+
 async function getConfig() {
     let config = appConfig
     let host = $cache.get('alist_tvbox_host')
@@ -37,7 +39,11 @@ async function getTabs(host) {
 
     let url = host + '/vod1'
 
-    const { data } = await $fetch.get(url)
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
 
     let allClass = argsify(data).class
     allClass.forEach((e) => {
@@ -82,7 +88,11 @@ async function getCards(ext) {
     } else {
         let host = $cache.get('alist_tvbox_host')
         let url = ext.url + `&pg=${page}`
-        const { data } = await $fetch.get(url)
+        const { data } = await $fetch.get(url, {
+            headers: {
+                'User-Agent': UA,
+            },
+        })
 
         argsify(data).list.forEach((e) => {
             cards.push({
@@ -108,7 +118,11 @@ async function getTracks(ext) {
     let url = ext.url
     let host = $cache.get('alist_tvbox_host')
 
-    const { data } = await $fetch.get(url)
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
 
     const vod_play_url = argsify(data).list[0].vod_play_url
     const seasons = vod_play_url.split('$$$')
@@ -142,7 +156,8 @@ async function getPlayinfo(ext) {
 
     const { data } = await $fetch.get(url, {
         headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+            'User-Agent': UA,
+            'X-client': 'com.fongmi.android.tv',
         },
     })
 
@@ -193,7 +208,11 @@ async function search(ext) {
         const host = $cache.get('alist_tvbox_host')
         const url = `${host}/vod1?wd=${text}`
 
-        const { data } = await $fetch.get(url)
+        const { data } = await $fetch.get(url, {
+            headers: {
+                'User-Agent': UA,
+            },
+        })
 
         argsify(data).list.forEach((e) => {
             const id = e.vod_id
