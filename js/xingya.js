@@ -185,7 +185,7 @@ async function getHeader() {
     }
 
     let token = $cache.get('xingya')
-    $print(`token: ${token}`)
+    // $print(`token: ${token}`)
 
     if (token) {
         let currentTime = Math.floor(Date.now() / 1000)
@@ -217,7 +217,7 @@ async function getJWT(header) {
         }
     )
     const jwt = argsify(data).data.token
-    $print(`jwt: ${jwt}`)
+    // $print(`jwt: ${jwt}`)
     return jwt
 }
 

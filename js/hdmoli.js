@@ -165,7 +165,6 @@ function decryptUrl(encData) {
         let idx = i % 8
         url += String.fromCharCode(b64Data.charCodeAt(i) ^ 'ItLdg666'.charCodeAt(idx))
     }
-    //console.log('url', url);
     return base64Decode(url)
 }
 
