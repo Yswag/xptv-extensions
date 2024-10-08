@@ -24,7 +24,7 @@ let appConfig = {
         {
             name: '动画',
             ext: {
-                id: 3,
+                id: 41,
             },
         },
     ],
