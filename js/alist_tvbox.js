@@ -2,7 +2,7 @@
 let custom = ''
 
 let appConfig = {
-    ver: 1,
+    ver: 20241008,
     title: '小雅tvbox',
 }
 
