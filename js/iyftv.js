@@ -165,7 +165,7 @@ async function search(ext) {
 
     const text = encodeURIComponent(ext.text)
     const page = ext.page || 1
-    const url = `https://rankv21.iyf.tv/v3/list/briefsearch?tags=${encodeURIComponent(text)}&orderby=4&page=${page}&size=10&desc=0&isserial=-1&istitle=true`
+    const url = `https://rankv21.iyf.tv/v3/list/briefsearch?tags=${text}&orderby=4&page=${page}&size=10&desc=0&isserial=-1&istitle=true`
 
     const { data } = await $fetch.get(url, {
         headers: {
