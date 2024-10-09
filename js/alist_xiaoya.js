@@ -106,7 +106,13 @@ let xiaoyaTabs = [
 async function getConfig() {
     let config = appConfig
     // 沒有填就回退舊版緩存的host，避免舊版使用者重新配置
-    let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    // let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    let host
+    if ($config_str) {
+        host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    } else {
+        host = $cache.get('alist_xiaoya_host')
+    }
 
     config.site = host
     config.tabs = xiaoyaTabs
@@ -133,7 +139,13 @@ async function getCards(ext) {
         })
     }
 
-    let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    // let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    let host
+    if ($config_str) {
+        host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    } else {
+        host = $cache.get('alist_xiaoya_host')
+    }
     let url = `${host}/whatsnew?num=200&type=video&filter=last&cat=${ext.cat}`
     const { data } = await $fetch.get(url)
 
@@ -168,8 +180,17 @@ async function getTracks(ext) {
     ext = argsify(ext)
     let tracks = []
     let path = ext.path
-    let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
-    let token = argsify($config_str)?.token || $cache.get('alist_xiaoya_token')
+    // let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    // let token = argsify($config_str)?.token || $cache.get('alist_xiaoya_token')
+    let host
+    let token
+    if ($config_str) {
+        host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+        token = argsify($config_str)?.token || $cache.get('alist_xiaoya_token')
+    } else {
+        host = $cache.get('alist_xiaoya_host')
+        token = $cache.get('alist_xiaoya_token')
+    }
     let url = `${host}/api/fs/list`
 
     let headers = {
@@ -234,8 +255,17 @@ async function getTracks(ext) {
 async function getPlayinfo(ext) {
     ext = argsify(ext)
     let path = ext.path
-    let token = argsify($config_str)?.token || $cache.get('alist_xiaoya_token')
-    let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    // let token = argsify($config_str)?.token || $cache.get('alist_xiaoya_token')
+    // let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    let host
+    let token
+    if ($config_str) {
+        host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+        token = argsify($config_str)?.token || $cache.get('alist_xiaoya_token')
+    } else {
+        host = $cache.get('alist_xiaoya_host')
+        token = $cache.get('alist_xiaoya_token')
+    }
     let url = `${host}/api/fs/get`
 
     let headers = {
@@ -300,7 +330,13 @@ async function search(ext) {
     }
 
     const text = encodeURIComponent(ext.text)
-    const host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    // const host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    let host
+    if ($config_str) {
+        host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    } else {
+        host = $cache.get('alist_xiaoya_host')
+    }
     const url = `${host}/sou?box=${text}&type=video&url=`
 
     const { data } = await $fetch.get(url)
