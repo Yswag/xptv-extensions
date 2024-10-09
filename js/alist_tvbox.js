@@ -2,7 +2,7 @@
 let custom = ''
 
 let appConfig = {
-    ver: 20241008,
+    ver: 20241009,
     title: '小雅tvbox',
 }
 
@@ -14,7 +14,7 @@ let UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KH
 
 async function getConfig() {
     let config = appConfig
-    let host = $cache.get('alist_tvbox_host')
+    let host = argsify($config_str)?.url || $cache.get('alist_tvbox_host')
     if (!host) {
         host = 'undefined'
         config.site = host
@@ -68,7 +68,7 @@ async function getCards(ext) {
         cards = [
             {
                 vod_id: '-1',
-                vod_name: '請在單源搜索中輸入tvbox:alist_tvbox的URL',
+                vod_name: '請在自定義配置中填入url',
                 vod_pic: '',
                 vod_remarks: '',
                 ext: {
@@ -77,7 +77,7 @@ async function getCards(ext) {
             },
             {
                 vod_id: '-1',
-                vod_name: '例: tvbox:http://192.168.5.5:4567',
+                vod_name: '確保JSON格式正確',
                 vod_pic: '',
                 vod_remarks: '',
                 ext: {
@@ -86,7 +86,7 @@ async function getCards(ext) {
             },
         ]
     } else {
-        let host = $cache.get('alist_tvbox_host')
+        let host = argsify($config_str)?.url || $cache.get('alist_tvbox_host')
         let url = ext.url + `&pg=${page}`
         const { data } = await $fetch.get(url, {
             headers: {
@@ -116,7 +116,7 @@ async function getTracks(ext) {
     ext = argsify(ext)
     let tracks = []
     let url = ext.url
-    let host = $cache.get('alist_tvbox_host')
+    let host = argsify($config_str)?.url || $cache.get('alist_tvbox_host')
 
     const { data } = await $fetch.get(url, {
         headers: {
@@ -205,7 +205,7 @@ async function search(ext) {
         }
     } else {
         const text = encodeURIComponent(ext.text)
-        const host = $cache.get('alist_tvbox_host')
+        const host = argsify($config_str)?.url || $cache.get('alist_tvbox_host')
         const url = `${host}/vod1?wd=${text}`
 
         const { data } = await $fetch.get(url, {

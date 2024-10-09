@@ -1,5 +1,7 @@
 const cheerio = createCheerio()
 
+const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
+
 // 填入自建的地址 (http://your-ip:port)
 let custom = ''
 // 可選: 填入 alist 令牌 (alist-ff....)
@@ -13,7 +15,7 @@ if (token) {
 }
 
 let appConfig = {
-    ver: 1,
+    ver: 20241009,
     title: '小雅原版',
 }
 
@@ -29,7 +31,7 @@ let defaultConfig = {
     cards: [
         {
             vod_id: '-1',
-            vod_name: '請在單源搜索中輸入xiaoya:小雅的URL',
+            vod_name: '請在自定義配置中填入小雅配置',
             vod_pic: '',
             vod_remarks: '',
             ext: {
@@ -38,87 +40,82 @@ let defaultConfig = {
         },
         {
             vod_id: '-1',
-            vod_name: '例: xiaoya:http://192.168.5.5:5678',
+            vod_name: '確保JSON格式正確',
             vod_pic: '',
             vod_remarks: '',
             ext: {
                 cat: '',
             },
         },
-        {
-            vod_id: '-1',
-            vod_name: '如果開啟強制登入，在URL後面加上@@@alist令牌',
-            vod_pic: '',
-            vod_remarks: '',
-            ext: {
-                cat: '',
-            },
-        },
-        {
-            vod_id: '-1',
-            vod_name: '例: http://192.168.5.5:5678@@@alist-ff.....',
-            vod_pic: '',
-            vod_remarks: '',
-            ext: {
-                cat: '',
-            },
-        },
+        // {
+        //     vod_id: '-1',
+        //     vod_name: '如果開啟強制登入，在URL後面加上@@@alist令牌',
+        //     vod_pic: '',
+        //     vod_remarks: '',
+        //     ext: {
+        //         cat: '',
+        //     },
+        // },
+        // {
+        //     vod_id: '-1',
+        //     vod_name: '例: http://192.168.5.5:5678@@@alist-ff.....',
+        //     vod_pic: '',
+        //     vod_remarks: '',
+        //     ext: {
+        //         cat: '',
+        //     },
+        // },
     ],
 }
 
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
-
-function getXiaoyaTabs() {
-    return [
-        { name: '每日更新', ext: { cat: 'daily' } },
-        { name: '国产剧', ext: { cat: 'tv.china' } },
-        { name: '港台剧', ext: { cat: 'tv.hktw' } },
-        { name: '韩剧', ext: { cat: 'tv.korea' } },
-        { name: '美剧', ext: { cat: 'tv.us' } },
-        { name: '英剧', ext: { cat: 'tv.uk' } },
-        { name: '日剧', ext: { cat: 'tv.japan' } },
-        { name: '国漫', ext: { cat: 'comics.china' } },
-        { name: '日漫', ext: { cat: 'comics.japan' } },
-        { name: '动漫', ext: { cat: 'comics' } },
-        { name: '🎬中国', ext: { cat: 'movie.china' } },
-        { name: '🎬豆瓣榜', ext: { cat: 'movie.top' } },
-        { name: '🎬泰国', ext: { cat: 'movie.thai' } },
-        { name: '🎬港台', ext: { cat: 'movie.hktw' } },
-        { name: '🎬欧美', ext: { cat: 'movie.western' } },
-        { name: '🎬日本', ext: { cat: 'movie.japan' } },
-        { name: '🎬韩国', ext: { cat: 'movie.korea' } },
-        { name: '🎬印度', ext: { cat: 'movie.india' } },
-        { name: '🎬杜比', ext: { cat: 'movie.dolby' } },
-        { name: '🎬4K REMUX', ext: { cat: 'movie.4kremux' } },
-        { name: '纪录片.历史', ext: { cat: 'docu.history' } },
-        { name: '纪录片.美食', ext: { cat: 'docu.food' } },
-        { name: '纪录片.考古', ext: { cat: 'docu.archeology' } },
-        { name: '纪录片.探索发现', ext: { cat: 'docu.explore' } },
-        { name: '纪录片.国家地理', ext: { cat: 'docu.natgeo' } },
-        { name: '纪录片.BBC', ext: { cat: 'docu.bbc' } },
-        { name: '纪录片.NHK', ext: { cat: 'docu.nhk' } },
-        { name: '百家讲坛', ext: { cat: 'docu.baijia' } },
-        { name: '纪录片', ext: { cat: 'docu' } },
-        { name: '儿童', ext: { cat: 'comics.child' } },
-        { name: '音乐', ext: { cat: 'music' } },
-        { name: '综艺', ext: { cat: 'reality' } },
-    ]
-}
+let xiaoyaTabs = [
+    { name: '每日更新', ext: { cat: 'daily' } },
+    { name: '国产剧', ext: { cat: 'tv.china' } },
+    { name: '港台剧', ext: { cat: 'tv.hktw' } },
+    { name: '韩剧', ext: { cat: 'tv.korea' } },
+    { name: '美剧', ext: { cat: 'tv.us' } },
+    { name: '英剧', ext: { cat: 'tv.uk' } },
+    { name: '日剧', ext: { cat: 'tv.japan' } },
+    { name: '国漫', ext: { cat: 'comics.china' } },
+    { name: '日漫', ext: { cat: 'comics.japan' } },
+    { name: '动漫', ext: { cat: 'comics' } },
+    { name: '🎬中国', ext: { cat: 'movie.china' } },
+    { name: '🎬豆瓣榜', ext: { cat: 'movie.top' } },
+    { name: '🎬泰国', ext: { cat: 'movie.thai' } },
+    { name: '🎬港台', ext: { cat: 'movie.hktw' } },
+    { name: '🎬欧美', ext: { cat: 'movie.western' } },
+    { name: '🎬日本', ext: { cat: 'movie.japan' } },
+    { name: '🎬韩国', ext: { cat: 'movie.korea' } },
+    { name: '🎬印度', ext: { cat: 'movie.india' } },
+    { name: '🎬杜比', ext: { cat: 'movie.dolby' } },
+    { name: '🎬4K REMUX', ext: { cat: 'movie.4kremux' } },
+    { name: '纪录片.历史', ext: { cat: 'docu.history' } },
+    { name: '纪录片.美食', ext: { cat: 'docu.food' } },
+    { name: '纪录片.考古', ext: { cat: 'docu.archeology' } },
+    { name: '纪录片.探索发现', ext: { cat: 'docu.explore' } },
+    { name: '纪录片.国家地理', ext: { cat: 'docu.natgeo' } },
+    { name: '纪录片.BBC', ext: { cat: 'docu.bbc' } },
+    { name: '纪录片.NHK', ext: { cat: 'docu.nhk' } },
+    { name: '百家讲坛', ext: { cat: 'docu.baijia' } },
+    { name: '纪录片', ext: { cat: 'docu' } },
+    { name: '儿童', ext: { cat: 'comics.child' } },
+    { name: '音乐', ext: { cat: 'music' } },
+    { name: '综艺', ext: { cat: 'reality' } },
+]
 
 async function getConfig() {
     let config = appConfig
-    let host = $cache.get('alist_xiaoya_host')
+    // 沒有填就回退舊版緩存的host，避免舊版使用者重新配置
+    let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+
+    config.site = host
+    config.tabs = xiaoyaTabs
 
     if (!host) {
         host = 'undefined'
         config.site = host
         config.tabs = defaultConfig.tabs
-
-        return jsonify(config)
     }
-
-    config.site = host
-    config.tabs = getXiaoyaTabs()
 
     return jsonify(config)
 }
@@ -136,7 +133,7 @@ async function getCards(ext) {
         })
     }
 
-    let host = $cache.get('alist_xiaoya_host')
+    let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
     let url = `${host}/whatsnew?num=200&type=video&filter=last&cat=${ext.cat}`
     const { data } = await $fetch.get(url)
 
@@ -171,8 +168,8 @@ async function getTracks(ext) {
     ext = argsify(ext)
     let tracks = []
     let path = ext.path
-    let host = $cache.get('alist_xiaoya_host')
-    let token = $cache.get('alist_xiaoya_token')
+    let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    let token = argsify($config_str)?.token || $cache.get('alist_xiaoya_token')
     let url = `${host}/api/fs/list`
 
     let headers = {
@@ -237,8 +234,8 @@ async function getTracks(ext) {
 async function getPlayinfo(ext) {
     ext = argsify(ext)
     let path = ext.path
-    let token = $cache.get('alist_xiaoya_token')
-    let host = $cache.get('alist_xiaoya_host')
+    let token = argsify($config_str)?.token || $cache.get('alist_xiaoya_token')
+    let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
     let url = `${host}/api/fs/get`
 
     let headers = {
@@ -303,7 +300,7 @@ async function search(ext) {
     }
 
     const text = encodeURIComponent(ext.text)
-    const host = $cache.get('alist_xiaoya_host')
+    const host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
     const url = `${host}/sou?box=${text}&type=video&url=`
 
     const { data } = await $fetch.get(url)
