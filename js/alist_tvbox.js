@@ -16,6 +16,9 @@ async function getConfig() {
     let config = appConfig
     let host = $cache.get('alist_tvbox_host')
     // let host = argsify($config_str)?.url || $cache.get('alist_tvbox_host')
+    if (typeof $config_str !== 'undefined') {
+        host = argsify($config_str)?.url || $cache.get('alist_tvbox_host')
+    }
     if (!host) {
         host = 'undefined'
         config.site = host
@@ -89,6 +92,9 @@ async function getCards(ext) {
     } else {
         let host = $cache.get('alist_tvbox_host')
         // let host = argsify($config_str)?.url || $cache.get('alist_tvbox_host')
+        if (typeof $config_str !== 'undefined') {
+            host = argsify($config_str)?.url || $cache.get('alist_tvbox_host')
+        }
 
         let url = ext.url + `&pg=${page}`
         const { data } = await $fetch.get(url, {
@@ -121,6 +127,9 @@ async function getTracks(ext) {
     let url = ext.url
     let host = $cache.get('alist_tvbox_host')
     // let host = argsify($config_str)?.url || $cache.get('alist_tvbox_host')
+    if (typeof $config_str !== 'undefined') {
+        host = argsify($config_str)?.url || $cache.get('alist_tvbox_host')
+    }
 
     const { data } = await $fetch.get(url, {
         headers: {
@@ -209,8 +218,11 @@ async function search(ext) {
         }
     } else {
         const text = encodeURIComponent(ext.text)
-        const host = $cache.get('alist_tvbox_host')
+        let host = $cache.get('alist_tvbox_host')
         // const host = argsify($config_str)?.url || $cache.get('alist_tvbox_host')
+        if (typeof $config_str !== 'undefined') {
+            host = argsify($config_str)?.url || $cache.get('alist_tvbox_host')
+        }
 
         const url = `${host}/vod1?wd=${text}`
 

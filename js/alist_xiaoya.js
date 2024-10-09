@@ -109,6 +109,9 @@ async function getConfig() {
     // 沒有填就回退舊版緩存的host，避免舊版使用者重新配置
     let host = $cache.get('alist_xiaoya_host')
     // let host = $config?.url || $cache.get('alist_xiaoya_host')
+    if (typeof $config_str !== 'undefined') {
+        host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    }
 
     config.site = host
     config.tabs = xiaoyaTabs
@@ -137,6 +140,9 @@ async function getCards(ext) {
 
     let host = $cache.get('alist_xiaoya_host')
     // let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    if (typeof $config_str !== 'undefined') {
+        host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    }
     let url = `${host}/whatsnew?num=200&type=video&filter=last&cat=${ext.cat}`
     const { data } = await $fetch.get(url)
 
@@ -175,6 +181,10 @@ async function getTracks(ext) {
     let token = $cache.get('alist_xiaoya_token')
     // let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
     // let token = argsify($config_str)?.token || $cache.get('alist_xiaoya_token')
+    if (typeof $config_str !== 'undefined') {
+        host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+        token = argsify($config_str)?.token || $cache.get('alist_xiaoya_token')
+    }
     let url = `${host}/api/fs/list`
 
     let headers = {
@@ -243,6 +253,10 @@ async function getPlayinfo(ext) {
     let host = $cache.get('alist_xiaoya_host')
     // let token = argsify($config_str)?.token || $cache.get('alist_xiaoya_token')
     // let host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    if (typeof $config_str !== 'undefined') {
+        host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+        token = argsify($config_str)?.token || $cache.get('alist_xiaoya_token')
+    }
 
     let url = `${host}/api/fs/get`
 
@@ -308,8 +322,11 @@ async function search(ext) {
     }
 
     const text = encodeURIComponent(ext.text)
-    const host = $cache.get('alist_xiaoya_host')
+    let host = $cache.get('alist_xiaoya_host')
     // const host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    if (typeof $config_str !== 'undefined') {
+        host = argsify($config_str)?.url || $cache.get('alist_xiaoya_host')
+    }
     const url = `${host}/sou?box=${text}&type=video&url=`
 
     const { data } = await $fetch.get(url)
