@@ -161,7 +161,7 @@ async function getPlayinfo(ext) {
         let playurl = text.match(/url: "(.*?)"/)[1]
 
         return jsonify({ urls: [playurl] })
-    }
+    } else return jsonify({ urls: ['https://shattereddisk.github.io/rickroll/rickroll.mp4'] })
 }
 
 async function search(ext) {

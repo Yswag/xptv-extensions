@@ -129,6 +129,12 @@ async function getPlayinfo(ext) {
     })
 
     const $ = cheerio.load(data)
+    const isVipOnly = $('.noplay').text()
+    if (isVipOnly) {
+        return jsonify({
+            urls: ['https://shattereddisk.github.io/rickroll/rickroll.mp4'],
+        })
+    }
     let iframe = $('iframe').filter((i, iframe) => $(iframe).attr('src').includes('Cloud'))
     if (0 < iframe.length) {
         console.log('method 1')

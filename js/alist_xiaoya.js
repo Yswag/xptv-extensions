@@ -1,7 +1,6 @@
 const cheerio = createCheerio()
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
-// const $config = $config_str ? argsify($config_str) : {}
 
 // 填入自建的地址 (http://your-ip:port)
 let custom = ''
@@ -48,24 +47,6 @@ let defaultConfig = {
                 cat: '',
             },
         },
-        // {
-        //     vod_id: '-1',
-        //     vod_name: '如果開啟強制登入，在URL後面加上@@@alist令牌',
-        //     vod_pic: '',
-        //     vod_remarks: '',
-        //     ext: {
-        //         cat: '',
-        //     },
-        // },
-        // {
-        //     vod_id: '-1',
-        //     vod_name: '例: http://192.168.5.5:5678@@@alist-ff.....',
-        //     vod_pic: '',
-        //     vod_remarks: '',
-        //     ext: {
-        //         cat: '',
-        //     },
-        // },
     ],
 }
 
