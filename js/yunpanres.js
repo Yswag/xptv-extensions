@@ -8,15 +8,39 @@ const appConfig = {
     site: 'https://res.yunpan.win',
     tabs: [
         {
-            name: '阿里',
+            name: '全部',
             ext: {
-                id: 1,
+                id: '',
             },
         },
         {
-            name: '夸克',
+            name: '电影',
             ext: {
-                id: 2,
+                id: '电影',
+            },
+        },
+        {
+            name: '电视剧',
+            ext: {
+                id: '电视剧',
+            },
+        },
+        {
+            name: '动画',
+            ext: {
+                id: '动画',
+            },
+        },
+        {
+            name: '纪录片',
+            ext: {
+                id: '纪录片',
+            },
+        },
+        {
+            name: '综艺',
+            ext: {
+                id: '综艺',
             },
         },
     ],
@@ -30,8 +54,9 @@ async function getCards(ext) {
     ext = argsify(ext)
     let cards = []
     let { page = 1, id } = ext
+    id = encodeURIComponent(id)
 
-    const url = appConfig.site + `/?PageIndex=${page}&PageSize=50&Keyword=&YunPanSourceType=${id}`
+    const url = appConfig.site + `/?PageIndex=${page}&PageSize=50&Keyword=&Type=${id}`
 
     const { data } = await $fetch.get(url, {
         headers: {
@@ -55,7 +80,7 @@ async function getCards(ext) {
             vod_id: panUrl,
             vod_name: name,
             vod_pic: `${appConfig.site}${cover}`,
-            vod_remarks: '',
+            vod_remarks: panType,
             ext: {
                 name,
                 url: panUrl,
