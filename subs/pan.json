@@ -11,6 +11,18 @@
             "type": 3,
             "api": "csp_yydsys",
             "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/yydsys.js"
+        },
+        {
+            "name": "小米 | PAN",
+            "type": 3,
+            "api": "csp_mihdr",
+            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/mihdr.js"
+        },
+        {
+            "name": "云盘资源网 | PAN",
+            "type": 3,
+            "api": "csp_yunpanres",
+            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/yunpanres.js"
         }
     ]
 }
