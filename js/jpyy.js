@@ -50,10 +50,12 @@ async function getCards(ext) {
     })
 
     argsify(data).data.list.forEach((e) => {
+        const name = e.vodName
+        if (name.includes('预告')) return
         const id = e.vodId
         cards.push({
             vod_id: id.toString(),
-            vod_name: e.vodName,
+            vod_name: name,
             vod_pic: e.vodPic,
             vod_remarks: e.vodRemarks || e.vodVersion,
             ext: {
