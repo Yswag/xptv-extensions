@@ -11,8 +11,52 @@ let appConfig = {
 
 async function getConfig() {
     let config = appConfig
+    await sliderBypass()
     config.tabs = await getTabs()
     return jsonify(config)
+}
+
+async function sliderBypass() {
+    const { data } = await $fetch.get(appConfig.site, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
+    const $ = cheerio.load(data)
+    if ($('title').text() === '滑动验证') {
+        $print('bypassing slider')
+        let slide_js = appConfig.site + $('body script').attr('src')
+        let slide_js_res = await $fetch.get(slide_js, {
+            headers: {
+                'User-Agent': UA,
+            },
+        })
+        let vd_url = appConfig.site + slide_js_res.data.match(/\/a20be899_96a6_40b2_88ba_32f1f75f1552_yanzheng_huadong\.php\?type=.*?&key=/)[0]
+        let [, key, value] = slide_js_res.data.match(/key="(.*?)",value="(.*?)";/)
+        vd_url = vd_url + `${key}&value=${md5encode(stringtoHex(value))}`
+        $print(`***vd_url = ${vd_url}`)
+        let vd_res = await $fetch.get(vd_url, {
+            headers: {
+                'User-Agent': UA,
+                Referer: appConfig.site + '/',
+            },
+        })
+        // $print(`***${vd_res}`)
+        $print('好像返回set-cookie後xptv會自動使用')
+    }
+
+    function stringtoHex(acSTR) {
+        var val = ''
+        for (var i = 0; i <= acSTR.length - 1; i++) {
+            var str = acSTR.charAt(i)
+            var code = str.charCodeAt()
+            val += parseInt(code) + 1
+        }
+        return val
+    }
+    function md5encode(word) {
+        return CryptoJS.MD5(word).toString()
+    }
 }
 
 async function getTabs() {
