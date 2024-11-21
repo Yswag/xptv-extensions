@@ -77,7 +77,7 @@ async function getCards(ext) {
 
 async function getTracks(ext) {
     ext = argsify(ext)
-    let tracks = []
+    let groups = []
     const param = {
         vod_id: ext.id,
     }
@@ -88,31 +88,32 @@ async function getTracks(ext) {
     playlist.forEach((e) => {
         const videoInfo = e.urls
         const parse = e.parse_urls[0] || ''
+        let from = e.flag
+        let group = {
+            title: from,
+            tracks: [],
+        }
         videoInfo.forEach((e) => {
-            let from = e.form
             let ep = e.name
             let url = e.url
             if (parse) {
                 url = parse + url
             }
 
-            tracks.push({
-                name: `${from}-${ep}`,
+            group.tracks.push({
+                name: `${ep}`,
                 pan: '',
                 ext: {
                     url: url,
                 },
             })
         })
+
+        groups.push(group)
     })
 
     return jsonify({
-        list: [
-            {
-                title: '默认分组',
-                tracks,
-            },
-        ],
+        list: groups,
     })
 }
 

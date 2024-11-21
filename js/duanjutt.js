@@ -152,7 +152,7 @@ async function getPlayinfo(ext) {
         //         return jsonify({ urls: [location] })
         //     }
         // }
-        return jsonify({ urls: [purl], headers: { Referer: appConfig.site } })
+        return jsonify({ urls: [purl], headers: [{ Referer: appConfig.site }] })
     }
 
     return jsonify({ urls: [] })
