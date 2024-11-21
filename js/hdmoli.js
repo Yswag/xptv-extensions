@@ -72,7 +72,7 @@ async function getCards(ext) {
 
 async function getTracks(ext) {
     ext = argsify(ext)
-    let tracks = []
+    let groups = []
     let href = ext.href
     let url = appConfig.site + href
 
@@ -87,36 +87,41 @@ async function getTracks(ext) {
     const playlist = $('ul.myui-content__list')
     playlist.each((index, e) => {
         const eps = $(e).find('li')
+        let group = {
+            title: `線路${index + 1}`,
+            tracks: [],
+        }
         eps.each((_, e) => {
             const name = $(e).find('a').text()
             const href = $(e).find('a').attr('href')
-            tracks.push({
-                name: `線路${index + 1}-${name}`,
+            group.tracks.push({
+                name: name,
                 pan: '',
                 ext: {
                     url: href,
                 },
             })
         })
+        groups.push(group)
     })
 
     const panlist = $('.stui-vodlist__text.downlist p')
+    const pangroup = {
+        title: '',
+        tracks: [],
+    }
     panlist.each((_, e) => {
         const name = $(e).find('b').text().replace('：', '')
         const link = $(e).find('a').attr('href')
-        tracks.push({
+        pangroup.tracks.push({
             name: name,
             pan: link,
         })
     })
+    groups.push(pangroup)
 
     return jsonify({
-        list: [
-            {
-                title: '默认分组',
-                tracks,
-            },
-        ],
+        list: groups,
     })
 }
 
@@ -136,10 +141,12 @@ async function getPlayinfo(ext) {
     if (encUrl.endsWith('.mp4')) {
         return jsonify({
             urls: ['https://v.damoli.pro/v/' + encUrl],
-            headers: {
-                'User-Agent': UA,
-                Referer: appConfig.site + '/',
-            },
+            headers: [
+                {
+                    'User-Agent': UA,
+                    Referer: 'https://hdmoli.pro/',
+                },
+            ],
         })
     }
 
@@ -155,7 +162,9 @@ async function getPlayinfo(ext) {
     const encData = argsify(parseRes.data).url
     const realUrl = decryptUrl(encData)
 
-    return jsonify({ urls: [realUrl] })
+    return jsonify({
+        urls: [realUrl],
+    })
 }
 
 function decryptUrl(encData) {
