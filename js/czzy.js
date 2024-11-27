@@ -111,6 +111,24 @@ async function getTracks(ext) {
         })
     })
 
+    const panlist = $('.ypbt_down_list')
+    if (panlist) {
+        panlist.find('ul li').each((_, e) => {
+            const name = $(e).find('a').text()
+            const href = $(e).find('a').attr('href')
+            if (!href.includes(/ali|quark|115/)) return
+            tracks.push({
+                name: name,
+                pan: '',
+                ext: {
+                    url: href,
+                },
+            })
+        })
+    }
+
+    $utils.toastInfo('不能看的在群裡回報')
+
     return jsonify({
         list: [
             {
