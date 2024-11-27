@@ -114,15 +114,12 @@ async function getTracks(ext) {
     const panlist = $('.ypbt_down_list')
     if (panlist) {
         panlist.find('ul li').each((_, e) => {
-            const name = $(e).find('a').text()
+            const name = $(e).find('a').text().trim()
             const href = $(e).find('a').attr('href')
-            if (!href.includes(/ali|quark|115/)) return
+            if (!/ali|quark|115|uc/.test(href)) return
             tracks.push({
                 name: name,
-                pan: '',
-                ext: {
-                    url: href,
-                },
+                pan: href,
             })
         })
     }
