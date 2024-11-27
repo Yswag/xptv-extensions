@@ -69,7 +69,7 @@ async function getCards(ext) {
         const title = $(element).find('img').attr('alt')
         const cover = $(element).find('img').attr('data-original')
         const subTitle = $(element).find('.jidi span').text()
-        const hdinfo = $(element).find('.hdinfo .qb').text()
+        const hdinfo = $(element).find('.hdinfo span').text()
         cards.push({
             vod_id: href,
             vod_name: title,
