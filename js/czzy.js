@@ -222,7 +222,7 @@ async function getPlayinfo(ext) {
         $print(error)
     }
 
-    return jsonify({ urls: [playurl] })
+    return jsonify({ urls: [playurl], headers: [{ 'User-Agent': UA }] })
 }
 
 async function search(ext) {
