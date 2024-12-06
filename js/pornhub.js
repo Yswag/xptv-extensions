@@ -10,7 +10,7 @@ let appConfig = {
         {
             name: 'home',
             ext: {
-                id: '',
+                id: 'sy',
             },
             ui: 1,
         },
