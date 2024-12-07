@@ -29,7 +29,7 @@ async function getTabs() {
     },
   })
   if (data.includes('Just a moment...')) {
-    $utils.openSafari(appConfig.site + '/categories', UA)
+    $utils.openSafari(classurl, UA)
   }
   const $ = cheerio.load(data)
 
@@ -158,7 +158,7 @@ async function search(ext) {
     },
   })
   if (data.includes('Just a moment...')) {
-    $utils.openSafari(appConfig.site + '/search', UA)
+    $utils.openSafari(url, UA)
   }
 
   const $ = cheerio.load(data)
