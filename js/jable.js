@@ -29,7 +29,7 @@ async function getTabs() {
     },
   })
   if (data.includes('Just a moment...')) {
-    $utils.openSafari(classurl, UA)
+    $utils.openSafari(appConfig.site, UA)
   }
   const $ = cheerio.load(data)
 
@@ -67,7 +67,7 @@ async function getCards(ext) {
     },
   })
   if (data.includes('Just a moment...')) {
-    $utils.openSafari(classurl, UA)
+    $utils.openSafari(appConfig.site, UA)
   }
   const $ = cheerio.load(data)
 
@@ -106,7 +106,7 @@ async function getTracks(ext) {
     },
   })
   if (data.includes('Just a moment...')) {
-    $utils.openSafari(classurl, UA)
+    $utils.openSafari(appConfig.site, UA)
   }
   const $ = cheerio.load(data)
   let script = $('#site-content .container .col')
@@ -158,7 +158,7 @@ async function search(ext) {
     },
   })
   if (data.includes('Just a moment...')) {
-    $utils.openSafari(classurl, UA)
+    $utils.openSafari(appConfig.site, UA)
   }
 
   const $ = cheerio.load(data)
