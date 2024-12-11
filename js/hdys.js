@@ -16,6 +16,7 @@ async function getConfig() {
 }
 
 async function getTabs() {
+    $utils.toastError('搜索請間隔10秒')
     let list = []
     let ignore = ['首页', 'APP', 'PornDude']
     function isIgnoreClassName(className) {
@@ -53,7 +54,7 @@ async function getTabs() {
 }
 
 async function getCards(ext) {
-    $utils.toastError('搜索請間隔10秒')
+    
     ext = argsify(ext)
     let cards = []
     let { page = 1, typeurl } = ext
