@@ -144,47 +144,52 @@ async function getPlayinfo(ext) {
     ext = argsify(ext)
     const { vid, pkey, ref } = ext
 
-    // get vkey
-    const playerUrl = `https://player.novipnoad.net/v1/?url=${vid}&pkey=${pkey}&ref=${ref}`
-    const player = await $fetch.get(playerUrl, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
-            referer: 'https://www.novipnoad.net',
-        },
-    })
-    const data = player.data.match(/decodeURIComponent\(escape\(r\)\)\}(.*)\)/)[1].replace(/["\(\)]/g, '')
-    const device = player.data.match(/params\['device'\] = '(\w+)';/)[1]
-    const config = data.split(',')
-    const vkey = JSON.parse(
-        getVkey(...config)
-            .match(/JSON.stringify\((.*)\)\);/)[1]
-            .replace(/'/g, '"')
-            .replace(/(ckey|ref|ip|time):/g, '"$1":')
-    )
+    try {
+        // get vkey
+        const playerUrl = `https://player.novipnoad.net/v1/?url=${vid}&pkey=${pkey}&ref=${ref}`
+        const player = await $fetch.get(playerUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+                referer: 'https://www.novipnoad.net',
+            },
+        })
+        const data = player.data.match(/decodeURIComponent\(escape\(r\)\)\}(.*)\)/)[1].replace(/["\(\)]/g, '')
+        const device = player.data.match(/params\['device'\] = '(\w+)';/)[1]
+        const config = data.split(',')
+        const vkey = JSON.parse(
+            getVkey(...config)
+                .match(/JSON.stringify\((.*)\)\);/)[1]
+                .replace(/'/g, '"')
+                .replace(/(ckey|ref|ip|time):/g, '"$1":')
+        )
 
-    // get jsapi
-    const phpUrl = `https://player.novipnoad.net/v1/player.php?id=${vid}&device=${device}`
-    const phpres = await $fetch.get(phpUrl, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
-            referer: playerUrl,
-        },
-    })
-    let jsapi = phpres.data.match(/jsapi = '(.*)';/)[1]
-    jsapi = jsapi + '?ckey=' + vkey.ckey.toUpperCase() + '&ref=' + encodeURIComponent(vkey.ref) + '&ip=' + vkey.ip + '&time=' + vkey.time
+        // get jsapi
+        const phpUrl = `https://player.novipnoad.net/v1/player.php?id=${vid}&device=${device}`
+        const phpres = await $fetch.get(phpUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+                referer: playerUrl,
+            },
+        })
+        let jsapi = phpres.data.match(/jsapi = '(.*)';/)[1]
+        jsapi = jsapi + '?ckey=' + vkey.ckey.toUpperCase() + '&ref=' + encodeURIComponent(vkey.ref) + '&ip=' + vkey.ip + '&time=' + vkey.time
 
-    // get play url
-    const jsres = await $fetch.get(jsapi, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
-            referer: 'https://www.novipnoad.net',
-        },
-    })
-    let playUrl = jsres.data.match(/decrypt\("(.*)"\)/)[1]
-    playUrl = decryptUrl(playUrl)
-    playUrl = playUrl.quality[playUrl.defaultQuality].url
+        // get play url
+        const jsres = await $fetch.get(jsapi, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+                referer: 'https://www.novipnoad.net',
+            },
+        })
+        let playUrl = jsres.data.match(/decrypt\("(.*)"\)/)[1]
+        playUrl = decryptUrl(playUrl)
+        playUrl = playUrl.quality[playUrl.defaultQuality].url
+        $print(`playUrl: ${playUrl}`)
 
-    return jsonify({ urls: [playUrl] })
+        return jsonify({ urls: [playUrl] })
+    } catch (error) {
+        $print(error)
+    }
 }
 
 async function search(ext) {
@@ -260,7 +265,9 @@ function _0xe31c(d, e, f) {
 }
 
 function decryptUrl(_0x395610) {
-    var _0x15159f = '5f3651b7'
+    // jq
+    // var _0x15159f = '5f3651b7'
+    var _0x15159f = 'e11ed29b'
     var _0x36346e = _0x2b01e7(_0x395610, _0x15159f)
     return JSON.parse(_0x36346e)
 }
