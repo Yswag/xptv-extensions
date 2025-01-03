@@ -26,6 +26,9 @@ async function getTabs() {
             'User-Agent': UA,
         },
     })
+    if (data.includes('Just a moment...')) {
+        $utils.openSafari(appConfig.site, UA)
+    }
     const $ = cheerio.load(data)
 
     let allClass = $('.main-menu .nav-ul-menu a')
@@ -60,6 +63,9 @@ async function getCards(ext) {
             'User-Agent': UA,
         },
     })
+    if (data.includes('Just a moment...')) {
+        $utils.openSafari(url, UA)
+    }
 
     const $ = cheerio.load(data)
     $('.video-listing-content .video-item').each((_, element) => {
@@ -94,6 +100,9 @@ async function getTracks(ext) {
             'User-Agent': UA,
         },
     })
+    if (data.includes('Just a moment...')) {
+        $utils.openSafari(url, UA)
+    }
 
     const $ = cheerio.load(data)
     let playInfo = $('.item-content script').text()
@@ -207,6 +216,9 @@ async function search(ext) {
                 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1',
         },
     })
+    if (data.includes('Just a moment...')) {
+        $utils.openSafari(url, UA)
+    }
 
     const $ = cheerio.load(data)
 
