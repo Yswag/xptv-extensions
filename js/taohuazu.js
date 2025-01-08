@@ -6,13 +6,35 @@ let appConfig = {
     ver: 1,
     title: '桃花族',
     // 40thz.com
-    site: 'http://7340hsck.cc',
+    // site: 'http://7340hsck.cc',
+    home: 'http://hscangku.com',
+    site: 'http://920ck.us',
 }
 
 async function getConfig() {
+    // await getNewDomain()
     let config = appConfig
     config.tabs = await getTabs()
     return jsonify(config)
+}
+
+async function getNewDomain() {
+    let url = appConfig.home
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
+
+    let redirect = data.match(/r strU="(https:\/\/.*?)\/\?u=/)[1]
+    $print(redirect)
+    redirect = redirect + `/?u=${appConfig.home}/&p=/`
+    const res = await $fetch.get(redirect, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
+    $print(JSON.stringify(res, null, 2))
 }
 
 async function getTabs() {

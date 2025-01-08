@@ -1,4 +1,4 @@
-const UA = 'okhttp/3.12.11'
+const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)'
 const config = argsify($config_str)
 
 let appConfig = {
