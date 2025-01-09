@@ -107,6 +107,12 @@
             "type": 3,
             "api": "csp_catflix",
             "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/catflix.js"
+        },
+        {
+            "name": "皮皮蝦",
+            "type": 3,
+            "api": "csp_ppxys",
+            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/ppxys.js"
         }
     ]
 }
