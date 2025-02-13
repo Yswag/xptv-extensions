@@ -157,9 +157,6 @@ async function search(ext) {
       'User-Agent': UA,
     },
   })
-  if (data.includes('Just a moment...')) {
-    $utils.openSafari(url, UA)
-  }
 
   const $ = cheerio.load(data)
 

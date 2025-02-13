@@ -1,9 +1,10 @@
 const CryptoJS = createCryptoJS()
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+
+const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1'
 
 let appConfig = {
     ver: 1,
-    title: '金牌影院',
+    title: '金牌影视',
     site: 'https://www.cfkj86.com',
     tabs: [
         {
@@ -13,9 +14,59 @@ let appConfig = {
             },
         },
         {
-            name: '电视剧',
+            name: '美剧',
             ext: {
                 id: 2,
+                area: '美国',
+            },
+        },
+        {
+            name: '韩剧',
+            ext: {
+                id: 2,
+                area: '韩国',
+            },
+        },
+        {
+            name: '日剧',
+            ext: {
+                id: 2,
+                area: '日本',
+            },
+        },
+        {
+            name: '陆剧',
+            ext: {
+                id: 2,
+                area: '中国大陆',
+            },
+        },
+        {
+            name: '港剧',
+            ext: {
+                id: 2,
+                area: '中国香港',
+            },
+        },
+        {
+            name: '台剧',
+            ext: {
+                id: 2,
+                area: '中国台湾',
+            },
+        },
+        {
+            name: '泰剧',
+            ext: {
+                id: 2,
+                area: '泰国',
+            },
+        },
+        {
+            name: '其他',
+            ext: {
+                id: 2,
+                area: '其他',
             },
         },
         {
@@ -34,14 +85,19 @@ let appConfig = {
 }
 
 async function getConfig() {
-    return jsonify(appConfig)
+    return JSON.stringify(appConfig)
 }
 
 async function getCards(ext) {
-    ext = argsify(ext)
+    ext = JSON.parse(ext)
     let cards = []
-    let { id, page = 1 } = ext
-    const url = `${appConfig.site}/api/mw-movie/anonymous/video/list?pageNum=${page}&pageSize=30&sort=1&sortBy=1&type1=${id}`
+    let { id, area, page = 1 } = ext
+    
+    let url = `${appConfig.site}/api/mw-movie/anonymous/video/list?pageNum=${page}&pageSize=30&sort=1&sortBy=1&type1=${id}`
+    
+    if (area) {
+        url = `${appConfig.site}/api/mw-movie/anonymous/video/list?area=${area}&pageNum=${page}&pageSize=30&sort=1&sortBy=1&type1=${id}`
+    } 
 
     const headers = getHeader(url)
 
@@ -49,7 +105,7 @@ async function getCards(ext) {
         headers: headers,
     })
 
-    argsify(data).data.list.forEach((e) => {
+    JSON.parse(data).data.list.forEach((e) => {
         const name = e.vodName
         if (name.includes('预告')) return
         const id = e.vodId
@@ -57,44 +113,44 @@ async function getCards(ext) {
             vod_id: id.toString(),
             vod_name: name,
             vod_pic: e.vodPic,
-            vod_remarks: e.vodRemarks || e.vodVersion,
+            vod_remarks: e.vodDoubanScore.toFixed(1),
+            vod_duration: e.vodRemarks.replace(/\|.*/, '') || e.vodVersion,
+            vod_pubdate: e.vodPubdate,
             ext: {
-                url: `${appConfig.site}/detail/${id}`,
+                id: id,
             },
         })
     })
 
-    return jsonify({
+    return JSON.stringify({
         list: cards,
     })
 }
 
 async function getTracks(ext) {
-    ext = argsify(ext)
+    ext = JSON.parse(ext)
     let tracks = []
-    let url = ext.url
+    let id = ext.id
+    let url = appConfig.site.replace('www', 'm') + '/detail/' + id
 
     const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
-            Referer: appConfig.site + '/',
         },
     })
-
-    const playlist = $html.elements(data, 'div[class^="detail__PlayListBox"] div.listitem a')
-    playlist.forEach((e) => {
-        const name = $html.text(e, 'a')
-        const href = $html.attr(e, 'a', 'href')
+    
+    const nidData = '{"' + data.match(/episodeList.*?\[.*?\}\]\}/)[0].replace(/\\\"/g, '"')
+	JSON.parse(nidData).episodeList.forEach((e) => {
         tracks.push({
-            name: name,
-            pan: '',
+            name: e.name,
             ext: {
-                url: `${appConfig.site}${href}`,
+                id: id,
+                nid: e.nid,
             },
         })
     })
 
-    return jsonify({
+    return JSON.stringify({
         list: [
             {
                 title: '默认分组',
@@ -105,22 +161,22 @@ async function getTracks(ext) {
 }
 
 async function getPlayinfo(ext) {
-    ext = argsify(ext)
-    const [, id, sid] = ext.url.match(/vod\/play\/(.*)\/sid\/(.*)/)
-    const url = `${appConfig.site}/api/mw-movie/anonymous/v1/video/episode/url?id=${id}&nid=${sid}`
+    ext = JSON.parse(ext)
+    let { id, nid }= ext
+    const url = `${appConfig.site}/api/mw-movie/anonymous/v1/video/episode/url?id=${id}&nid=${nid}`
     const headers = getHeader(url)
 
     const { data } = await $fetch.get(url, {
         headers: headers,
     })
 
-    let playUrl = argsify(data).data.playUrl
+    let playUrl = JSON.parse(data).data.playUrl
 
-    return jsonify({ urls: [playUrl] })
+    return JSON.stringify({ urls: [playUrl] })
 }
 
 async function search(ext) {
-    ext = argsify(ext)
+    ext = JSON.parse(ext)
     let cards = []
 
     const text = ext.text
@@ -133,20 +189,22 @@ async function search(ext) {
         headers: headers,
     })
 
-    argsify(data).data.list.forEach((e) => {
+    JSON.parse(data).data.list.forEach((e) => {
         const id = e.vodId
         cards.push({
             vod_id: id.toString(),
             vod_name: e.vodName,
             vod_pic: e.vodPic,
-            vod_remarks: e.vodRemarks || e.vodVersion,
+            vod_remarks: e.vodDoubanScore.toFixed(1),
+            vod_duration: e.vodRemarks.replace(/\|.*/, '') || e.vodVersion,
+            vod_pubdate: e.vodPubdate,
             ext: {
-                url: `${appConfig.site}/detail/${id}`,
+                id: id,
             },
         })
     })
 
-    return jsonify({
+    return JSON.stringify({
         list: cards,
     })
 }
@@ -170,3 +228,4 @@ function getHeader(url) {
 
     return headers
 }
+
