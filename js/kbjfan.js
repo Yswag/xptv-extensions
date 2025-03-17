@@ -79,15 +79,32 @@ async function getTracks(ext) {
     })
 
     const $ = cheerio.load(data)
-    let playUrl = $('#posts-pay .new-dplayer').attr('video-url')
+    let playlist = $('.dplayer-featured a')
 
-    tracks.push({
-        name: '播放',
-        pan: '',
-        ext: {
-            url: playUrl,
-        },
-    })
+    if (playlist.length) {
+        playlist.each((_, element) => {
+            let name = $(element).text().trim()
+            let url = $(element).attr('video-url')
+
+            tracks.push({
+                name: name,
+                pan: '',
+                ext: {
+                    url: url,
+                },
+            })
+        })
+    } else {
+        let playUrl = $('#posts-pay .new-dplayer').attr('video-url')
+
+        tracks.push({
+            name: '播放',
+            pan: '',
+            ext: {
+                url: playUrl,
+            },
+        })
+    }
 
     return jsonify({
         list: [
