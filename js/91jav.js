@@ -7,7 +7,7 @@ let appConfig = {
     ver: 1,
     title: '91Jav',
     // 91jav.fun
-    site: 'https://041.bndmpsjx.com',
+    site: 'https://jdkir.triutpw.cc',
 }
 
 async function getConfig() {
