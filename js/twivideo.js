@@ -100,16 +100,14 @@ async function getCards(ext) {
             let url = $(e).find('.item_link').attr('href')
             cards.push({
                 vod_id: url,
-                vod_name: $(e).find('.item_link').attr('data-id'),
+                // vod_name: $(e).find('.item_link').attr('data-id'),
+                vod_name: '',
                 vod_pic: img,
-                // vod_duration: e.uname,
                 ext: {
                     id: url,
                 },
             })
         })
-
-        $print(jsonify(cards))
 
         return jsonify({
             list: cards,
