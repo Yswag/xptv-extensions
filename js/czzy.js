@@ -6,7 +6,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 let appConfig = {
     ver: 1,
     title: '廠長',
-    site: 'https://www.czzyvideo.com',
+    site: 'https://www.czzymovie.com',
 }
 
 async function getConfig() {
@@ -152,9 +152,11 @@ async function getPlayinfo(ext) {
 
         // 1
         const jsurl = $('iframe').attr('src')
+        // $print('jsurl = ' + jsurl)
         if (jsurl) {
             let headers = {
                 'user-agent': UA,
+                Referer: url,
             }
             if (jsurl.includes('player-v2')) {
                 headers['sec-fetch-dest'] = 'iframe'
@@ -165,6 +167,7 @@ async function getPlayinfo(ext) {
             const jsres = await $fetch.get(jsurl, { headers: headers })
             const $2 = cheerio.load(jsres.data)
             const scripts = $2('script')
+            $print(scripts)
             if (scripts.length - 2 > 0) {
                 let code = scripts.eq(scripts.length - 2).text()
 
@@ -192,7 +195,7 @@ async function getPlayinfo(ext) {
                     }
 
                     let content = JSON.parse(decrypt(player[1], 'VFBTzdujpR9FWBhe', rand[1]))
-                    $print(JSON.stringify(content))
+                    // $print(JSON.stringify(content))
                     playurl = content.url
                 } else {
                     let data = code.split('"data":"')[1].split('"')[0]
@@ -216,7 +219,7 @@ async function getPlayinfo(ext) {
             }
         }
     } catch (error) {
-        $print(error)
+        $print(jsonify(error))
     }
 
     return jsonify({ urls: [playurl], headers: [{ 'User-Agent': UA }] })
