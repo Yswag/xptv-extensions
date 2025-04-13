@@ -163,14 +163,14 @@ async function getTracks(ext) {
 async function getPlayinfo(ext) {
     ext = JSON.parse(ext)
     let { id, nid }= ext
-    const url = `${appConfig.site}/api/mw-movie/anonymous/v1/video/episode/url?id=${id}&nid=${nid}`
+    const url = `${appConfig.site}/api/mw-movie/anonymous/v2/video/episode/url?id=${id}&nid=${nid}`
     const headers = getHeader(url)
 
     const { data } = await $fetch.get(url, {
         headers: headers,
     })
 
-    let playUrl = JSON.parse(data).data.playUrl
+    let playUrl = JSON.parse(data).data.list[0].url
 
     return JSON.stringify({ urls: [playUrl] })
 }
