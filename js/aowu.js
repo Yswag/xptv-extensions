@@ -163,40 +163,112 @@ async function getPlayinfo(ext) {
 }
 
 async function search(ext) {
-    ext = argsify(ext)
-    let cards = []
+    try {
+        ext = argsify(ext)
+        let cards = []
+        const ocrApi = 'https://api.nn.ci/ocr/b64/json'
+        let cookie = 'PHPSESSID=' + generatePHPSESSID()
 
-    let text = encodeURIComponent(ext.text)
-    let page = ext.page || 1
-    let url = `${appConfig.site}/search/page/${page}/wd/${text}.html`
+        let text = encodeURIComponent(ext.text)
+        let page = ext.page || 1
+        if (page > 1) {
+            return jsonify({
+                list: cards,
+            })
+        }
 
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
+        let validate = appConfig.site + '/verify/index.html'
+        let url = appConfig.site + `/search/-------------.html?wd=${text}`
 
-    const $ = cheerio.load(data)
-
-    $('li.hl-list-item').each((_, element) => {
-        const vodUrl = $(element).find('a.hl-item-thumb').attr('href')
-        const vodPic = $(element).find('a.hl-item-thumb').attr('data-original')
-        const vodName = $(element).find('a.hl-item-thumb').attr('title')
-        const vodDiJiJi = $(element).find('span.remarks').text()
-        cards.push({
-            vod_id: vodUrl,
-            vod_name: vodName,
-            vod_pic: vodPic,
-            vod_remarks: vodDiJiJi.trim(),
-            ext: {
-                url: `${appConfig.site}${vodUrl}`,
+        let img = await $fetch.download(validate, {
+            headers: {
+                'User-Agent': UA,
+                cookie: cookie,
             },
         })
-    })
 
-    return jsonify({
-        list: cards,
-    })
+        function binaryStringToBase64(binaryString) {
+            const byteArray = []
+            for (let i = 0; i < binaryString.length; i += 8) {
+                const byte = binaryString.slice(i, i + 8)
+                byteArray.push(parseInt(byte, 2)) // convert 8 bits to a byte
+            }
+
+            const uint8Array = new Uint8Array(byteArray)
+            const wordArray = CryptoJS.lib.WordArray.create(uint8Array)
+            return CryptoJS.enc.Base64.stringify(wordArray)
+        }
+
+        let b64 = binaryStringToBase64(img.data)
+
+        let ocrRes = await $fetch.post(ocrApi, b64, {
+            headers: {
+                'User-Agent': UA,
+                cookie: cookie,
+            },
+        })
+        let vd = argsify(ocrRes.data).result
+
+        let validateRes = await $fetch.post(appConfig.site + `/index.php/ajax/verify_check?type=search&verify=${vd}`, '', {
+            headers: {
+                'user-agent': UA,
+                cookie: cookie,
+                referer: url,
+                'x-request-with': 'XMLHttpRequest',
+                'sec-fetch-site': 'same-origin',
+                origin: appConfig.site,
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-dest': 'empty',
+            },
+        })
+
+        if (argsify(validateRes.data).msg === 'ok') {
+            let searchRes = await $fetch.get(url, {
+                headers: {
+                    'user-agent': UA,
+                    cookie: cookie,
+                },
+            })
+            let html = searchRes.data
+
+            const $ = cheerio.load(html)
+
+            $('.search-box').each((_, element) => {
+                const href = $(element).find('.left .public-list-exp').attr('href')
+                const title = $(element).find('.thumb-content .thumb-txt').text()
+                const cover = $(element).find('.left img').attr('data-src')
+                const subTitle = $(element).find('.left .public-list-prb').text()
+                cards.push({
+                    vod_id: href,
+                    vod_name: title,
+                    vod_pic: cover,
+                    vod_remarks: subTitle,
+                    ext: {
+                        id: href.match(/play\/(.+)-1-1\.html/)[1],
+                    },
+                })
+            })
+
+            return jsonify({
+                list: cards,
+            })
+        }
+    } catch (error) {
+        $print(error)
+    }
+}
+
+function generatePHPSESSID() {
+    const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    const length = 26
+    let sessionId = ''
+
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length)
+        sessionId += characters[randomIndex]
+    }
+
+    return sessionId
 }
 
 function md5(text) {
