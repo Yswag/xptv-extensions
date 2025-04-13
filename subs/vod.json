@@ -90,6 +90,12 @@
             "api": "csp_laodifang",
             "icon": "https://www.laodifang.tv/template/mxone/mxstatic/picture/logo.png",
             "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/laodifang.js"
+        },
+        {
+            "name": "嗷嗚動漫",
+            "type": 3,
+            "api": "csp_aowu",
+            "ext": "https://raw.githubusercontent.com/Yswag/xptv-extensions/main/js/aowu.js"
         }
     ]
 }

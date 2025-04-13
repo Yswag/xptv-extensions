@@ -167,7 +167,7 @@ async function getPlayinfo(ext) {
             const jsres = await $fetch.get(jsurl, { headers: headers })
             const $2 = cheerio.load(jsres.data)
             const scripts = $2('script')
-            $print(scripts)
+            // $print(scripts)
             if (scripts.length - 2 > 0) {
                 let code = scripts.eq(scripts.length - 2).text()
 
