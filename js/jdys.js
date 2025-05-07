@@ -178,7 +178,7 @@ async function search(ext) {
         $('.bt_img.mi_ne_kd ul li').each((_, each) => {
             cards.push({
                 vod_id: $(each).find('a').attr('href'),
-                vod_name: $(each).find('h3.dytit a').text(),
+                vod_name: $(each).find('h3.dytit > a').text(),
                 vod_pic: $(each).find('img').attr('src'),
                 vod_remarks: $(each).find('.dytit .dycategory > a').text(),
                 vod_duration: $(each).find('.dytit .dyplayinfo').text().trim(),
