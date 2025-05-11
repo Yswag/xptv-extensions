@@ -7,7 +7,7 @@ const UA = 'okhttp/3.12.11'
 let appConfig = {
     ver: 1,
     title: '小蘋果',
-    site: 'http://item.xpgtv.com',
+    site: 'http://item.xpgcom.com',
     tabs: [
         {
             name: '电影',
@@ -116,10 +116,12 @@ async function getPlayinfo(ext) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
         screenx: '1280',
         screeny: '720',
-        timestamp: `${Math.floor(Date.now() / 1000)}`,
+        // timestamp: `${Math.floor(Date.now() / 1000)}`,
     }
-    const str = `||||DC6FFCB55FA||861824127032820||12702720||Asus/Asus/ASUS_I003DD:7.1.2/20171130.376229:user/release-keysXPGBOX com.phoenix.tv1.3.3${headers.timestamp}`
-    headers.hash = CryptoJS.MD5(str).toString().toLowerCase().substring(8, 12)
+    // const str = `||||DC6FFCB55FA||861824127032820||12702720||Asus/Asus/ASUS_I003DD:7.1.2/20171130.376229:user/release-keysXPGBOX com.phoenix.tv1.3.3${headers.timestamp}`
+    // headers.hash = CryptoJS.MD5(str).toString().toLowerCase().substring(8, 12)
+    headers.hash = 'd78a'
+    headers.timestamp = '1743060300'
 
     return jsonify({ urls: [url], headers: [headers] })
 }
