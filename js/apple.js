@@ -1,11 +1,9 @@
-// const axios = require('axios')
-// const CryptoJS = require('crypto-js')
 const CryptoJS = createCryptoJS()
 
 const UA = 'okhttp/3.12.11'
 
 let appConfig = {
-    ver: 1,
+    ver: 20250511,
     title: '小蘋果',
     site: 'http://item.xpgcom.com',
     tabs: [
