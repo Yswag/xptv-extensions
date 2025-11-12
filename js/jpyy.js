@@ -1,11 +1,12 @@
 const CryptoJS = createCryptoJS()
 
-const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1'
+const UA =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1'
 
 let appConfig = {
     ver: 1,
     title: '金牌影视',
-    site: 'https://www.cfkj86.com',
+    site: $cache.get('jpyy_host') || 'https://www.cfkj86.com',
     tabs: [
         {
             name: '电影',
@@ -81,6 +82,12 @@ let appConfig = {
                 id: 4,
             },
         },
+        {
+            name: 'host選擇',
+            ext: {
+                id: 55688,
+            },
+        },
     ],
 }
 
@@ -92,18 +99,69 @@ async function getCards(ext) {
     ext = JSON.parse(ext)
     let cards = []
     let { id, area, page = 1 } = ext
-    
+
+    if (id === 55688) {
+        if (page > 1) return
+        let hostList = [
+            {
+                vod_id: 'host1',
+                vod_name: 'host1',
+                vod_pic: '',
+                ext: {
+                    url: 'https://www.cfkj86.com',
+                },
+            },
+            {
+                vod_id: 'host2',
+                vod_name: 'host2',
+                vod_pic: '',
+                ext: {
+                    url: 'https://www.hkybqufgh.com',
+                },
+            },
+            {
+                vod_id: 'host3',
+                vod_name: 'host3',
+                vod_pic: '',
+                ext: {
+                    url: 'https://www.sizhengxt.com',
+                },
+            },
+            {
+                vod_id: 'host4',
+                vod_name: 'host4',
+                vod_pic: '',
+                ext: {
+                    url: 'https://www.9zhoukj.com',
+                },
+            },
+            {
+                vod_id: 'host5',
+                vod_name: 'host5',
+                vod_pic: '',
+                ext: {
+                    url: 'https://www.jiabaide.cn',
+                },
+            },
+        ]
+
+        return JSON.stringify({
+            list: hostList,
+        })
+    }
+
     let url = `${appConfig.site}/api/mw-movie/anonymous/video/list?pageNum=${page}&pageSize=30&sort=1&sortBy=1&type1=${id}`
-    
+
     if (area) {
         url = `${appConfig.site}/api/mw-movie/anonymous/video/list?area=${area}&pageNum=${page}&pageSize=30&sort=1&sortBy=1&type1=${id}`
-    } 
+    }
 
     const headers = getHeader(url)
 
-    const { data } = await $fetch.get(url, {
+    const response = await $fetch.get(url, {
         headers: headers,
     })
+    const data = response.data
 
     JSON.parse(data).data.list.forEach((e) => {
         const name = e.vodName
@@ -129,6 +187,13 @@ async function getCards(ext) {
 
 async function getTracks(ext) {
     ext = JSON.parse(ext)
+
+    if (ext.url) {
+        $cache.set('jpyy_host', ext.url)
+        $utils.toastInfo('域名已修改，重啟生效')
+        return
+    }
+
     let tracks = []
     let id = ext.id
     let url = appConfig.site.replace('www', 'm') + '/detail/' + id
@@ -138,9 +203,9 @@ async function getTracks(ext) {
             'User-Agent': UA,
         },
     })
-    
+
     const nidData = '{"' + data.match(/episodeList.*?\[.*?\}\]\}/)[0].replace(/\\\"/g, '"')
-	JSON.parse(nidData).episodeList.forEach((e) => {
+    JSON.parse(nidData).episodeList.forEach((e) => {
         tracks.push({
             name: e.name,
             ext: {
@@ -162,7 +227,7 @@ async function getTracks(ext) {
 
 async function getPlayinfo(ext) {
     ext = JSON.parse(ext)
-    let { id, nid }= ext
+    let { id, nid } = ext
     const url = `${appConfig.site}/api/mw-movie/anonymous/v2/video/episode/url?id=${id}&nid=${nid}`
     const headers = getHeader(url)
 
@@ -181,7 +246,9 @@ async function search(ext) {
 
     const text = ext.text
     const page = ext.page || 1
-    const url = `${appConfig.site}/api/mw-movie/anonymous/video/searchByWordPageable?keyword=${encodeURIComponent(text)}&pageNum=${page}&pageSize=12&type=false`
+    const url = `${appConfig.site}/api/mw-movie/anonymous/video/searchByWordPageable?keyword=${encodeURIComponent(
+        text
+    )}&pageNum=${page}&pageSize=12&type=false`
     const key = `searchByWordPageable?keyword=${text}&pageNum=${page}&pageSize=12&type=false`
     const headers = getHeader(key)
 
@@ -216,7 +283,9 @@ function getHeader(url) {
     const signStr = dataStr + `&key=${signKey}` + `&t=${t}`
 
     function getUUID() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (e) => ('x' === e ? (16 * Math.random()) | 0 : 'r&0x3' | '0x8').toString(16))
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (e) =>
+            ('x' === e ? (16 * Math.random()) | 0 : 'r&0x3' | '0x8').toString(16)
+        )
     }
 
     const headers = {
@@ -229,3 +298,49 @@ function getHeader(url) {
     return headers
 }
 
+function selectingHost() {
+    let hostList = [
+        {
+            vod_id: 'host1',
+            vod_name: '1',
+            vod_pic: '',
+            ext: {
+                url: 'https://www.cfkj86.com',
+            },
+        },
+        {
+            vod_id: 'host2',
+            vod_name: '2',
+            vod_pic: '',
+            ext: {
+                url: 'https://www.hkybqufgh.com',
+            },
+        },
+        {
+            vod_id: 'host3',
+            vod_name: '3',
+            vod_pic: '',
+            ext: {
+                url: 'https://www.sizhengxt.com',
+            },
+        },
+        {
+            vod_id: 'host4',
+            vod_name: '4',
+            vod_pic: '',
+            ext: {
+                url: 'https://www.9zhoukj.com',
+            },
+        },
+        {
+            vod_id: 'host5',
+            vod_name: '5',
+            vod_pic: '',
+            ext: {
+                url: 'https://www.jiabaide.cn',
+            },
+        },
+    ]
+
+    return hostList
+}

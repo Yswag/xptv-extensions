@@ -158,13 +158,17 @@ async function getPlayinfo(ext) {
         const playerUrl = `https://player.novipnoad.net/v1/?url=${vid}&pkey=${pkey}&ref=${ref}`
         const player = await $fetch.get(playerUrl, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+                'User-Agent':
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
                 referer: 'https://www.novipnoad.net',
             },
         })
-        const data = player.data.match(/decodeURIComponent\(escape\(r\)\)\}(.*)\)/)[1].replace(/["\(\)]/g, '')
+        // const data = player.data.match(/decodeURIComponent\(escape\(r\)\)\}(.*)\)/)[1].replace(/["\(\)]/g, '')
+        const data = player.data.match(/decodeURIComponent\(escape\([A-Za-z]\)\)\}(.*)\)/)[1].replace(/["\(\)]/g, '')
+        $print(data)
         const device = player.data.match(/params\['device'\] = '(\w+)';/)[1]
         const config = data.split(',')
+        // $print(getVkey(...config))
         const vkey = JSON.parse(
             getVkey(...config)
                 .match(/JSON.stringify\((.*)\)\);/)[1]
@@ -176,17 +180,28 @@ async function getPlayinfo(ext) {
         const phpUrl = `https://player.novipnoad.net/v1/player.php?id=${vid}&device=${device}`
         const phpres = await $fetch.get(phpUrl, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+                'User-Agent':
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
                 referer: playerUrl,
             },
         })
         let jsapi = phpres.data.match(/jsapi = '(.*)';/)[1]
-        jsapi = jsapi + '?ckey=' + vkey.ckey.toUpperCase() + '&ref=' + encodeURIComponent(vkey.ref) + '&ip=' + vkey.ip + '&time=' + vkey.time
+        jsapi =
+            jsapi +
+            '?ckey=' +
+            vkey.ckey.toUpperCase() +
+            '&ref=' +
+            encodeURIComponent(vkey.ref) +
+            '&ip=' +
+            vkey.ip +
+            '&time=' +
+            vkey.time
 
         // get play url
         const jsres = await $fetch.get(jsapi, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+                'User-Agent':
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
                 referer: 'https://www.novipnoad.net',
             },
         })
@@ -299,7 +314,9 @@ function _0x2b01e7(_0x12f758, _0xda9b8e) {
         _0x19fa71 = _0x300ace[_0x1d31f3]
         _0x300ace[_0x1d31f3] = _0x300ace[_0x18815b]
         _0x300ace[_0x18815b] = _0x19fa71
-        _0xe5da02 += String.fromCharCode(_0x3bf069.charCodeAt(b) ^ _0x300ace[(_0x300ace[_0x1d31f3] + _0x300ace[_0x18815b]) % 256])
+        _0xe5da02 += String.fromCharCode(
+            _0x3bf069.charCodeAt(b) ^ _0x300ace[(_0x300ace[_0x1d31f3] + _0x300ace[_0x18815b]) % 256]
+        )
     }
     return _0xe5da02
 }
