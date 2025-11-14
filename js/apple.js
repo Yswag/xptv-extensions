@@ -5,7 +5,8 @@ const UA = 'okhttp/3.12.11'
 let appConfig = {
     ver: 20250511,
     title: '小蘋果',
-    site: 'http://item.xpgcom.com',
+    // site: 'http://item.xpgcom.com',
+    site: 'http://194.147.100.13',
     tabs: [
         {
             name: '电影',
