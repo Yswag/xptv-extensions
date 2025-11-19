@@ -5,27 +5,27 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/6
 let appConfig = {
     ver: 1,
     title: '4k-av',
-    site: 'https://4k-av.com',
+    site: 'https://4kmp.com',
     tabs: [
         {
             name: '首頁',
             ext: {
                 id: 0,
-                url: 'https://4k-av.com',
+                url: 'https://4kmp.com',
             },
         },
         {
             name: '電影',
             ext: {
                 id: 1,
-                url: 'https://4k-av.com/movie',
+                url: 'https://4kmp.com/movie',
             },
         },
         {
             name: '電視劇',
             ext: {
                 id: 2,
-                url: 'https://4k-av.com/tv',
+                url: 'https://4kmp.com/tv',
             },
         },
     ],
