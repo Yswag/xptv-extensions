@@ -1,7 +1,8 @@
 const cheerio = createCheerio()
 const CryptoJS = createCryptoJS()
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+const UA =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
 let appConfig = {
     ver: 20240413,
@@ -163,17 +164,6 @@ async function getPlayinfo(ext) {
             let player = pres.data.match(/var player = "(.*?)"/)[1]
             let rand = pres.data.match(/var rand = "(.*?)"/)[1]
 
-            function cryptJs(text, key, iv, type) {
-                var type = type || false
-                var key = CryptoJS.enc.Utf8.parse(key || 'PBfAUnTdMjNDe6pL')
-                var iv = CryptoJS.enc.Utf8.parse(iv || 'sENS6bVbwSfvnXrj')
-                if (type) {
-                    var content = CryptoJS.AES.encrypt(text, key, { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 })
-                } else {
-                    var content = CryptoJS.AES.decrypt(text, key, { iv: iv, padding: CryptoJS.pad.Pkcs7 }).toString(CryptoJS.enc.Utf8)
-                }
-                return content
-            }
             let config = cryptJs(player, 'VFBTzdujpR9FWBhe', rand)
             playerUrl = argsify(config).url
         } else {
@@ -192,23 +182,42 @@ async function getPlayinfo(ext) {
             )
             let data = argsify(api.data).data
             let iv = argsify(api.data).iv
+            let key = md5('www.xiaohys.com').slice(0, 16)
 
-            function aes(text, iv) {
-                const key = CryptoJS.enc.Utf8.parse('d978a93ffb4d3a00')
+            // function aes(text, iv) {
+            //     const key = CryptoJS.enc.Utf8.parse('d978a93ffb4d3a00')
 
-                const decrypted = CryptoJS.AES.decrypt(text, key, {
-                    iv: CryptoJS.enc.Utf8.parse(iv),
-                    mode: CryptoJS.mode.CBC,
-                    padding: CryptoJS.pad.Pkcs7,
-                })
+            //     const decrypted = CryptoJS.AES.decrypt(text, key, {
+            //         iv: CryptoJS.enc.Utf8.parse(iv),
+            //         mode: CryptoJS.mode.CBC,
+            //         padding: CryptoJS.pad.Pkcs7,
+            //     })
 
-                return decrypted.toString(CryptoJS.enc.Utf8)
-            }
-            let config = aes(data, iv)
-            playerUrl = argsify(config).url
+            //     return decrypted.toString(CryptoJS.enc.Utf8)
+            // }
+            let config = cryptJs(data, key, iv)
+            playerUrl = argsify(config).videoUrl
         }
     } catch (error) {
         $print(error)
+    }
+
+    function cryptJs(text, key, iv, type) {
+        var type = type || false
+        var key = CryptoJS.enc.Utf8.parse(key || 'PBfAUnTdMjNDe6pL')
+        var iv = CryptoJS.enc.Utf8.parse(iv || 'sENS6bVbwSfvnXrj')
+        if (type) {
+            var content = CryptoJS.AES.encrypt(text, key, {
+                iv: iv,
+                mode: CryptoJS.mode.CBC,
+                padding: CryptoJS.pad.Pkcs7,
+            })
+        } else {
+            var content = CryptoJS.AES.decrypt(text, key, { iv: iv, padding: CryptoJS.pad.Pkcs7 }).toString(
+                CryptoJS.enc.Utf8
+            )
+        }
+        return content
     }
 
     return jsonify({ urls: [playerUrl], headers: [{ 'User-Agent': UA }] })
@@ -239,7 +248,7 @@ async function search(ext) {
 
         $('.search-box').each((_, element) => {
             const href = $(element).find('.left .public-list-exp').attr('href')
-            const title = $(element).find('.thumb-content .thumb-txt').text()
+            const title = $(element).find('.thumb-content .thumb-txt').text().trim()
             const cover = $(element).find('.left img').attr('data-src')
             const subTitle = $(element).find('.left .public-list-prb').text()
             cards.push({
