@@ -5,18 +5,18 @@ const UA =
 let appConfig = {
     ver: 1,
     title: 'fmovies',
-    site: 'https://fmovies.ro',
+    site: 'https://fmovies.llc',
     tabs: [
         {
             name: 'movies',
             ext: {
-                url: 'https://fmovies.ro/movie',
+                url: 'https://fmovies.llc/movie',
             },
         },
         {
             name: 'tv-shows',
             ext: {
-                url: 'https://fmovies.ro/tv-show',
+                url: 'https://fmovies.llc/tv-show',
             },
         },
     ],
