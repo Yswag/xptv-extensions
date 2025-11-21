@@ -281,16 +281,16 @@ async function getPlayinfo(ext) {
             //                 temp.substring(0x0, (temp.length - 0x7) / 0x2) + temp.substring((temp.length - 0x7) / 0x2 + 0x7)
             //         }
             //     }
-            // } else {
-            //     // 2
-            //     const script = $('script:contains(window.wp_nonce)')
-            //     if (script.length > 0) {
-            //         let code = script.eq(0).text()
-            //         let group = code.match(/(var.*)eval\((\w*\(\w*\))\)/)
-            //         const md5 = CryptoJS
-            //         const result = eval(group[1] + group[2])
-            //         playurl = result.match(/url:.*?['"](.*?)['"]/)[1]
-            //     }
+        } else {
+            // 2
+            const script = $('script:contains(window.wp_nonce)')
+            if (script.length > 0) {
+                let code = script.eq(0).text()
+                let group = code.match(/(var.*)eval\((\w*\(\w*\))\)/)
+                const md5 = CryptoJS
+                const result = eval(group[1] + group[2])
+                playurl = result.match(/url:.*?['"](.*?)['"]/)[1]
+            }
         }
     } catch (error) {
         $print(jsonify(error))
