@@ -86,6 +86,7 @@ async function getCards(ext) {
     if (data.includes('SafeLine')) {
         html = testFunc(data)
     } else html = data
+
     const $ = cheerio.load(html)
 
     $('.bt_img.mi_ne_kd.mrb ul > li').each((_, element) => {
@@ -368,28 +369,52 @@ async function search(ext) {
 }
 
 function testFunc(data) {
-    const raw_key = new Uint8Array(JSON.parse(data.match(/var\s+raw_key\s*=\s*(\[[^\]]*\])/)[1]))
-    const iv = new Uint8Array(JSON.parse(data.match(/var\s+iv\s*=\s*new Uint8Array\(\s*(\[[^\]]*\])\s*\)/)))
-    const encrypted = new Uint8Array(
-        JSON.parse(data.match(/var\s+encrypted\s*=\s*new Uint8Array\(\s*(\[[^\]]*\])\s*\)/))
-    )
-    const tag = new Uint8Array(JSON.parse(data.match(/var\s+tag\s*=\s*new Uint8Array\(\s*(\[[^\]]*\])\s*\)/)))
-
     try {
+        const raw_key = new Uint8Array(JSON.parse(data.match(/var\s+raw_key\s*=\s*(\[[^\]]*\])/)[1]))
+        const iv = new Uint8Array(JSON.parse(data.match(/var\s+iv\s*=\s*new Uint8Array\(\s*(\[[^\]]*\])\s*\)/)[1]))
+        const encrypted = new Uint8Array(
+            JSON.parse(data.match(/var\s+encrypted\s*=\s*new Uint8Array\(\s*(\[[^\]]*\])\s*\)/)[1])
+        )
+        const tag = new Uint8Array(JSON.parse(data.match(/var\s+tag\s*=\s*new Uint8Array\(\s*(\[[^\]]*\])\s*\)/)[1]))
+
         const ciphertextWithTag = new Uint8Array(encrypted.length + tag.length)
         ciphertextWithTag.set(encrypted, 0)
         ciphertextWithTag.set(tag, encrypted.length)
 
         const decrypted = asmCrypto.AES_GCM.decrypt(ciphertextWithTag, raw_key, iv)
 
-        let plaintext = ''
-        for (let i = 0; i < decrypted.length; i++) {
-            plaintext += String.fromCharCode(decrypted[i])
-        }
-        $print(plaintext)
+        // let plaintext = ''
+        // for (let i = 0; i < decrypted.length; i++) {
+        //     plaintext += String.fromCharCode(decrypted[i])
+        // }
+        let plaintext = utf8Decode(decrypted)
+        // $print(plaintext)
         return plaintext
     } catch (error) {
         $print(error)
         return null
     }
+}
+
+function utf8Decode(bytes) {
+    let out = '',
+        i = 0
+    const len = bytes.length
+
+    while (i < len) {
+        let c = bytes[i++]
+
+        if (c < 128) {
+            out += String.fromCharCode(c)
+        } else if (c > 191 && c < 224) {
+            const c2 = bytes[i++]
+            out += String.fromCharCode(((c & 31) << 6) | (c2 & 63))
+        } else {
+            const c2 = bytes[i++]
+            const c3 = bytes[i++]
+            out += String.fromCharCode(((c & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63))
+        }
+    }
+
+    return out
 }
