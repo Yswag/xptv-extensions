@@ -84,6 +84,7 @@ async function getTracks(ext) {
     playlist.forEach((e) => {
         const name = e.key
         const url = e.url
+        if (name.includes('及时雨')) return
         tracks.push({
             name: name,
             pan: '',
