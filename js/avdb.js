@@ -1,8 +1,7 @@
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)'
-const config = argsify($config_str)
 
 let appConfig = {
-    ver: 1,
+    ver: 20251202,
     title: 'avdb',
     site: 'https://avdbapi.com/api.php/provide/vod',
 }
@@ -85,7 +84,7 @@ async function getTracks(ext) {
         },
     })
 
-    let vod_play_url = argsify(data).list[0].episodes.server_data.Full.link_embed.split('?s=')[1]
+    let vod_play_url = argsify(data).list[0].episodes.server_data.Full.link_embed
     tracks.push({
         name: argsify(data).list[0].episodes.server_name,
         pan: '',
@@ -108,7 +107,19 @@ async function getPlayinfo(ext) {
     ext = argsify(ext)
     let url = ext.url
 
-    return jsonify({ urls: [url], headers: [{ 'User-Agent': UA, Referer: `https://avdbapi.com/` }] })
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+            Referer: `https://avdbapi.com/`,
+        },
+    })
+    let obj = data.match(/playerInstance\.setup\(\s*(\{[\s\S]*?\})\s*\);/)[1]
+    const aboutlink = obj.match(/aboutlink:\s*["']([^"']+)["']/)[1]
+    const file = obj.match(/file:\s*["']([^"']+)["']/)[1]
+
+    let playUrl = aboutlink + file
+
+    return jsonify({ urls: [playUrl], headers: [{ 'User-Agent': UA, Referer: `${url}/` }] })
 }
 
 async function search(ext) {
