@@ -204,14 +204,17 @@ async function getPlayinfo(ext) {
             tria4k: 1,
             // isAgeLimit: 0,
         }
-        
+
         let headers = buildSignedHeaders({
             method: 'GET',
             url,
             params,
             deviceId,
-            token: argsify($config_str).?token ? argsify($config_str).token : 'rrtv-bb3643e9bc9d62ebea4c30b20e7c313d5f57ab8a',
+            token: argsify($config_str).token
+                ? argsify($config_str).token
+                : 'rrtv-bb3643e9bc9d62ebea4c30b20e7c313d5f57ab8a',
         })
+        headers['umid'] = argsify($config_str).umid ? argsify($config_str).umid : '4E292B5D-FE99-4860-8054-5B0A11CC27AF'
 
         const { data } = await $fetch.get(`${url}?${sortedQueryString(params)}`, {
             headers,
