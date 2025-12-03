@@ -116,6 +116,7 @@ async function getCards(ext) {
             url,
             deviceId,
         })
+        headers['Content-Type'] = 'application/json'
 
         const { data } = await $fetch.post(url, body, {
             headers,
