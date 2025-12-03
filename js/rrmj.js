@@ -1,7 +1,7 @@
 const CryptoJS = createCryptoJS()
 
 // const deviceId = generateUUID().toUpperCase()
-const deviceId = '4E292B5D-FE99-4860-8054-5B0A11CC27AF'
+const deviceId = argsify($config_str).umid ? argsify($config_str).umid : '4E292B5D-FE99-4860-8054-5B0A11CC27AF'
 
 let appConfig = {
     ver: 20251202,
