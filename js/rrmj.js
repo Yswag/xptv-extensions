@@ -204,12 +204,13 @@ async function getPlayinfo(ext) {
             tria4k: 1,
             // isAgeLimit: 0,
         }
+        
         let headers = buildSignedHeaders({
             method: 'GET',
             url,
             params,
             deviceId,
-            token: 'rrtv-054123911b8d3460b972962de0c57f5552bacb5e',
+            token: argsify($config_str).?token ? argsify($config_str).token : 'rrtv-bb3643e9bc9d62ebea4c30b20e7c313d5f57ab8a',
         })
 
         const { data } = await $fetch.get(`${url}?${sortedQueryString(params)}`, {
@@ -238,7 +239,7 @@ async function getPlayinfo(ext) {
 
         return jsonify({ urls: [playUrl] })
     } catch (error) {
-        console.log(error)
+        $print(error)
     }
 }
 
