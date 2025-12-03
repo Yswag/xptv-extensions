@@ -169,6 +169,7 @@ async function getTracks(ext) {
         headers,
     })
     const decryptedData = decrypt(data)
+    const quality = argsify(decryptedData).data.watchInfo.sortedItems[0].qualityCode
 
     argsify(decryptedData).data.episodeList.forEach((e) => {
         tracks.push({
@@ -177,6 +178,7 @@ async function getTracks(ext) {
             ext: {
                 dramaId: id,
                 episodeSid: e.sid,
+                quality,
             },
         })
     })
@@ -193,14 +195,14 @@ async function getTracks(ext) {
 
 async function getPlayinfo(ext) {
     ext = argsify(ext)
-    let { dramaId, episodeSid } = ext
+    let { dramaId, episodeSid, quality } = ext
     let url = appConfig.site + `/m-station/drama/play`
     try {
         let params = {
             hsdrOpen: 0,
             dramaId: dramaId,
             episodeSid: episodeSid,
-            quality: 'AI4K',
+            quality: quality,
             hevcOpen: 1,
             tria4k: 1,
             // isAgeLimit: 0,
