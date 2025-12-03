@@ -133,7 +133,8 @@ async function getCards(ext) {
                 vod_id: `${e.dramaId}`,
                 vod_name: e.title,
                 vod_pic: e.coverUrl,
-                vod_remarks: e.subtitle,
+                vod_remarks: e.subtitle || '',
+                vod_duration: e.cornerMark || '',
                 ext: {
                     id: `${e.dramaId}`,
                 },
@@ -275,6 +276,7 @@ async function search(ext) {
             vod_name: e.title,
             vod_pic: e.cover,
             vod_remarks: e.subtitle || '',
+            vod_duration: e.cornerMark || '',
             ext: {
                 id: `${e.id}`,
             },
