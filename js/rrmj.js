@@ -1,6 +1,7 @@
 const CryptoJS = createCryptoJS()
 
-const deviceId = generateUUID().toUpperCase()
+// const deviceId = generateUUID().toUpperCase()
+const deviceId = '4E292B5D-FE99-4860-8054-5B0A11CC27AF'
 
 let appConfig = {
     ver: 20251202,
@@ -214,7 +215,7 @@ async function getPlayinfo(ext) {
                 ? argsify($config_str).token
                 : 'rrtv-bb3643e9bc9d62ebea4c30b20e7c313d5f57ab8a',
         })
-        headers['umid'] = argsify($config_str).umid ? argsify($config_str).umid : '4E292B5D-FE99-4860-8054-5B0A11CC27AF'
+        // headers['umid'] = argsify($config_str).umid ? argsify($config_str).umid : '4E292B5D-FE99-4860-8054-5B0A11CC27AF'
 
         const { data } = await $fetch.get(`${url}?${sortedQueryString(params)}`, {
             headers,
