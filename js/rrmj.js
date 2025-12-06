@@ -94,7 +94,6 @@ let appConfig = {
 }
 
 async function getConfig() {
-    // await getLatestToken()
     return jsonify(appConfig)
 }
 
@@ -292,15 +291,22 @@ async function search(ext) {
 async function getLatestToken() {
     let postUrl = 'https://t.me/Jsforbaby/219'
 
-    const { data } = await $fetch.get(postUrl)
-    const $ = cheerio.load(data)
-    let text = $('meta[property="og:description"]').attr('content')
-    let umid = text.match(/UMID:\s+([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})/)[1]
-    let token = text.match(/Token:\s+(rrtv-[0-9a-fA-F]+)/)[1]
+    try {
+        const { data } = await $fetch.get(postUrl)
 
-    if (umid && token) {
-        deviceId = umid
-        vipToken = token
+        const $ = cheerio.load(data)
+        let text = $('meta[property="og:description"]').attr('content')
+        let umid = text.match(
+            /umid:\s+([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})/
+        )[1]
+        let token = text.match(/token:\s+(rrtv-[0-9a-fA-F]+)/)[1]
+
+        if (umid && token) {
+            deviceId = umid
+            vipToken = token
+        }
+    } catch (error) {
+        return
     }
 }
 
