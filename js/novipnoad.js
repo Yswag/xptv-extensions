@@ -202,6 +202,7 @@ async function getPlayinfo(ext) {
 			return null
 		}
 
+  let window = {}
 		let fnCode = extractFunction(player.data, '__')
 		//$print(fnCode);
 		fnCode = fnCode.replace(/eval\s*\(/, 'return (')
