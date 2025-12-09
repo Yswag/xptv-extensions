@@ -207,7 +207,8 @@ async function getPlayinfo(ext) {
 		//$print(fnCode);
 		fnCode = fnCode.replace(/eval\s*\(/, 'return (')
 
-		const __func = new Function('return ' + fnCode)()
+		//const __func = new Function('return ' + fnCode)()
+		const __func = new Function("window", "return (" + fnCode + ")")(window)
 		const decoded = __func()
 		//$print(decoded);
 		const decodedStr = decoded.match(/setItem\('vkey','(.+?)'\);/)[1]
