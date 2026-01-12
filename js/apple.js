@@ -6,7 +6,7 @@ let appConfig = {
     ver: 20250511,
     title: '小蘋果',
     // site: 'http://item.xpgcom.com',
-    site: 'http://194.147.100.13',
+    site: 'http://c.xpgtv.net',
     tabs: [
         {
             name: '电影',
@@ -113,7 +113,8 @@ async function getPlayinfo(ext) {
         token: 'ElEDlwCVgXcFHFhddiq2JKteHofExRBUrfNlmHrWetU3VVkxnzJAodl52N9EUFS+Dig2A/fBa/V9RuoOZRBjYvI+GW8kx3+xMlRecaZuECdb/3AdGkYpkjW3wCnpMQxf8vVeCz5zQLDr8l8bUChJiLLJLGsI+yiNskiJTZz9HiGBZhZuWh1mV1QgYah5CLTbSz8=',
         version: 'XPGBOX com.phoenix.tv1.5.7',
         user_id: 'XPGBOX',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
         screenx: '1280',
         screeny: '720',
         // timestamp: `${Math.floor(Date.now() / 1000)}`,
