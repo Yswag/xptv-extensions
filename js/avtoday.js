@@ -1,9 +1,10 @@
 const cheerio = createCheerio()
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+const UA =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
 let appConfig = {
-    ver: 1,
+    ver: 20260224,
     title: 'avtoday',
     site: 'https://avtoday.io',
 }
@@ -62,16 +63,19 @@ async function getCards(ext) {
             'User-Agent': UA,
         },
     })
-
     const $ = cheerio.load(data)
 
     $('.thumbnail').each((_, element) => {
-        const href = $(element).find('.video-title a').attr('href')
         const title = $(element).find('.video-title a').text()
-        const cover = $(element).find('.video-cover').attr('src').replace('.', appConfig.site)
+        if (title.includes('[廣告]')) return
+        const href = $(element).find('.video-title a').attr('href')
         const subTitle = $(element).find('.video-tag').text().trim() || ''
         const duration = $(element).find('.video-duration').text().trim() || ''
         const pubdate = $(element).find('.video-date').text().trim() || ''
+
+        const style = $(element).find('.preview-video').attr('style')
+        const cover = appConfig.site + style.match(/url\('(.*?)'\)/)[1]
+
         cards.push({
             vod_id: href,
             vod_name: title,
@@ -95,32 +99,24 @@ async function getTracks(ext) {
     let tracks = []
     let url = ext.url
 
-    const { data } = await $fetch.get(url, {
+    let code = url.split('/video/')[1]
+    let playerUrl = `${appConfig.site}/player?s=${code}`
+
+    const { data } = await $fetch.get(playerUrl, {
         headers: {
             'User-Agent': UA,
+            Referer: url,
         },
     })
-
-    const $ = cheerio.load(data)
-    const playerUrl = $('.video-frame').attr('src').replace('.', appConfig.site)
-
-    if (playerUrl) {
-        const playerRes = await $fetch.get(playerUrl, {
-            headers: {
-                'User-Agent': UA,
-                Referer: url,
-            },
-        })
-
-        const m3u8Url = playerRes.data.match(/var m3u8_url = '(.*?)';/)[1]
-        tracks.push({
-            name: '播放',
-            pan: '',
-            ext: {
-                url: m3u8Url,
-            },
-        })
-    }
+    let playUrl = data.match(/m3u8_url\s+=\s+'(.+)'/)[1]
+    tracks.push({
+        name: '播放',
+        pan: '',
+        ext: {
+            url: playUrl,
+            playerUrl,
+        },
+    })
 
     return jsonify({
         list: [
@@ -137,7 +133,7 @@ async function getPlayinfo(ext) {
     const url = ext.url
     const headers = {
         'User-Agent': UA,
-        Referer: appConfig.site + '/',
+        Referer: ext.playerUrl + '/',
     }
 
     return jsonify({ urls: [url], headers: [headers] })
@@ -160,12 +156,16 @@ async function search(ext) {
     const $ = cheerio.load(data)
 
     $('.thumbnail').each((_, element) => {
-        const href = $(element).find('.video-title a').attr('href')
         const title = $(element).find('.video-title a').text()
-        const cover = $(element).find('.video-cover').attr('src').replace('.', appConfig.site)
+        if (title.includes('[廣告]')) return
+        const href = $(element).find('.video-title a').attr('href')
         const subTitle = $(element).find('.video-tag').text().trim() || ''
         const duration = $(element).find('.video-duration').text().trim() || ''
         const pubdate = $(element).find('.video-date').text().trim() || ''
+
+        const style = $(element).find('.preview-video').attr('style')
+        const cover = appConfig.site + style.match(/url\('(.*?)'\)/)[1]
+
         cards.push({
             vod_id: href,
             vod_name: title,
