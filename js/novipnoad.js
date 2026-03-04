@@ -2,6 +2,126 @@ const cheerio = createCheerio()
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)'
 
+function sleep(ms) {
+    const end = Date.now() + ms
+    while (Date.now() < end) {}
+}
+
+// https://github.com/NanoCat-Me/utils/blob/main/URL.mjs
+class URL {
+    constructor(url, base = undefined) {
+        const name = 'URL'
+        const version = '2.1.2'
+        // $print(`\n🟧 ${name} v${version}\n`)
+        url = this.#parse(url, base)
+        return this
+    }
+
+    #parse(url, base = undefined) {
+        const URLRegex =
+            /(?:(?<protocol>\w+:)\/\/(?:(?<username>[^\s:"]+)(?::(?<password>[^\s:"]+))?@)?(?<host>[^\s@/]+))?(?<pathname>\/?[^\s@?]+)?(?<search>\?[^\s?]+)?/
+        const PortRegex = /(?<hostname>.+):(?<port>\d+)$/
+        url = url.match(URLRegex)?.groups || {}
+        if (base) {
+            base = base?.match(URLRegex)?.groups || {}
+            if (!base.protocol || !base.hostname) throw new Error(`🚨 ${name}, ${base} is not a valid URL`)
+        }
+        if (url.protocol || base?.protocol) this.protocol = url.protocol || base.protocol
+        if (url.username || base?.username) this.username = url.username || base.username
+        if (url.password || base?.password) this.password = url.password || base.password
+        if (url.host || base?.host) {
+            this.host = url.host || base.host
+            Object.freeze(this.host)
+            this.hostname = this.host.match(PortRegex)?.groups.hostname ?? this.host
+            this.port = this.host.match(PortRegex)?.groups.port ?? ''
+        }
+        if (url.pathname || base?.pathname) {
+            this.pathname = url.pathname || base?.pathname
+            if (!this.pathname.startsWith('/')) this.pathname = '/' + this.pathname
+            this.paths = this.pathname.split('/').filter(Boolean)
+            Object.freeze(this.paths)
+            if (this.paths) {
+                const fileName = this.paths[this.paths.length - 1]
+                if (fileName?.includes('.')) {
+                    const list = fileName.split('.')
+                    this.format = list[list.length - 1]
+                    Object.freeze(this.format)
+                }
+            }
+        } else this.pathname = ''
+        if (url.search || base?.search) {
+            this.search = url.search || base.search
+            Object.freeze(this.search)
+            if (this.search)
+                this.searchParams = this.search
+                    .slice(1)
+                    .split('&')
+                    .map((param) => param.split('='))
+        }
+        this.searchParams = new Map(this.searchParams || [])
+        this.harf = this.toString()
+        Object.freeze(this.harf)
+        return this
+    }
+
+    toString() {
+        let string = ''
+        if (this.protocol) string += this.protocol + '//'
+        if (this.username) string += this.username + (this.password ? ':' + this.password : '') + '@'
+        if (this.hostname) string += this.hostname
+        if (this.port) string += ':' + this.port
+        if (this.pathname) string += this.pathname
+        if (this.searchParams.size !== 0)
+            string +=
+                '?' +
+                Array.from(this.searchParams)
+                    .map((param) => param.join('='))
+                    .join('&')
+        return string
+    }
+
+    toJSON() {
+        return JSON.stringify({ ...this })
+    }
+}
+
+/**
+ * 純 JS Base64 編解碼
+ */
+const _B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+
+function _atob(str) {
+    str = String(str).replace(/[^A-Za-z0-9+/]/g, '')
+    let result = ''
+    let i = 0
+    while (i < str.length) {
+        const e1 = _B64.indexOf(str[i++])
+        const e2 = _B64.indexOf(str[i++])
+        const e3 = _B64.indexOf(str[i++]) // 可能為 -1（padding）
+        const e4 = _B64.indexOf(str[i++]) // 可能為 -1（padding）
+        result += String.fromCharCode((e1 << 2) | (e2 >> 4))
+        if (e3 !== -1) result += String.fromCharCode(((e2 & 0xf) << 4) | (e3 >> 2))
+        if (e4 !== -1) result += String.fromCharCode(((e3 & 0x3) << 6) | e4)
+    }
+    return result
+}
+
+function _btoa(str) {
+    str = String(str)
+    let result = ''
+    let i = 0
+    while (i < str.length) {
+        const c1 = str.charCodeAt(i++)
+        const c2 = str.charCodeAt(i++) // NaN if out of range
+        const c3 = str.charCodeAt(i++) // NaN if out of range
+        result += _B64[c1 >> 2]
+        result += _B64[((c1 & 0x3) << 4) | (isNaN(c2) ? 0 : c2 >> 4)]
+        result += isNaN(c2) ? '=' : _B64[((c2 & 0xf) << 2) | (isNaN(c3) ? 0 : c3 >> 6)]
+        result += isNaN(c3) ? '=' : _B64[c3 & 0x3f]
+    }
+    return result
+}
+
 let appConfig = {
     ver: 20251119,
     title: 'NO視頻',
@@ -15,36 +135,68 @@ async function getConfig() {
 }
 
 async function getTabs() {
-    let list = []
-    let ignore = ['首页', '剧集']
-    function isIgnoreClassName(className) {
-        return ignore.some((element) => className.includes(element))
-    }
-
-    const { data } = await $fetch.get(appConfig.site, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
-    if (data.includes('Just a moment...')) {
-        $utils.openSafari(appConfig.site, UA)
-    }
-    const $ = cheerio.load(data)
-
-    let allClass = $('.main-menu .nav-ul-menu a')
-    allClass.each((i, e) => {
-        const name = $(e).text()
-        const href = $(e).attr('href')
-        const isIgnore = isIgnoreClassName(name)
-        if (isIgnore) return
-
-        list.push({
-            name,
+    let list = [
+        {
+            name: '电影',
             ext: {
-                url: href,
+                url: `${appConfig.site}/movie/`,
             },
-        })
-    })
+        },
+        {
+            name: '動畫',
+            ext: {
+                url: `${appConfig.site}/anime/`,
+            },
+        },
+        {
+            name: '綜藝',
+            ext: {
+                url: `${appConfig.site}/shows/`,
+            },
+        },
+        {
+            name: '欧美剧',
+            ext: {
+                url: `${appConfig.site}/tv/western/`,
+            },
+        },
+        {
+            name: '日剧',
+            ext: {
+                url: `${appConfig.site}/tv/japan/`,
+            },
+        },
+        {
+            name: '韩剧',
+            ext: {
+                url: `${appConfig.site}/tv/korea/`,
+            },
+        },
+        {
+            name: '台剧',
+            ext: {
+                url: `${appConfig.site}/tv/taiwan/`,
+            },
+        },
+        {
+            name: '泰剧',
+            ext: {
+                url: `${appConfig.site}/tv/thailand/`,
+            },
+        },
+        {
+            name: '港剧',
+            ext: {
+                url: `${appConfig.site}/tv/hongkong/`,
+            },
+        },
+        {
+            name: '土耳其剧',
+            ext: {
+                url: `${appConfig.site}/tv/turkey/`,
+            },
+        },
+    ]
 
     return list
 }
@@ -55,7 +207,7 @@ async function getCards(ext) {
     let { page = 1, url } = ext
 
     if (page > 1) {
-        url += `/page/${page}/`
+        url += `page/${page}/`
     }
 
     const { data } = await $fetch.get(url, {
@@ -155,146 +307,290 @@ async function getPlayinfo(ext) {
 
     try {
         // get vkey
-        const TWO_DIMEN_ARR_REGEX = /var\s+[a-zA-Z_$][a-zA-Z0-9_$]*=\[(\[[0-9,\[\]]+])];/
-        const ONE_DIMEN_ARR_REGEX = /var\s+[a-zA-Z_$][a-zA-Z0-9_$]*=\s*\(([0-9,]+)\];/
-        const ARG_A_B_REGEX =
-            /var\s+[a-zA-Z_$][a-zA-Z0-9_$]*=(\d+),*[a-zA-Z_$][a-zA-Z0-9_$]*=(\d+);var\s+[a-zA-Z_$][a-zA-Z0-9_$]*='';/
-        const ARG_A_REGEX = /var\s+[a-zA-Z_$][a-zA-Z0-9_$]*=(\d+);var\s+[a-zA-Z_$][a-zA-Z0-9_$]*='';/
-        const SPLIT_BASE64_REGEX = /[a-zA-Z_$][a-zA-Z0-9_$]*\+='([A-Za-z0-9+/=]+)'\+[a-zA-Z_$][a-zA-Z0-9_$]*;/g
-
-        const V_KEY_JS_PARSERS = [
-            /** ---------------- Parser 0 ---------------- */
-            function (jsText) {
-                const twoDimen = jsText.match(TWO_DIMEN_ARR_REGEX)
-                const twoDimenArrStr = twoDimen?.[1]
-                if (!twoDimenArrStr) throw new Error('failed: vKeyJs twoDimenArrStr')
-
-                const oneDimen = jsText.match(ONE_DIMEN_ARR_REGEX)
-                const oneDimenArrStr = oneDimen?.[1]
-                if (!oneDimenArrStr) throw new Error('failed: vKeyJs oneDimenArrStr')
-
-                const dataArrList = JSON.parse(`[${twoDimenArrStr.replace(/,$/, '')}]`)
-                const xorKeyList = oneDimenArrStr.split(',').map(Number)
-
-                if (dataArrList.length !== xorKeyList.length)
-                    throw new Error('failed: vKeyJs dataArrList.size!=xorKeyList.size')
-
-                return dataArrList
-                    .map((dataArr, index) => {
-                        const xorKey = xorKeyList[index]
-                        return dataArr.map((n) => String.fromCharCode(n ^ xorKey)).join('')
-                    })
-                    .join('')
-            },
-
-            /** ---------------- Parser 1 ---------------- */
-            function (jsText) {
-                const oneDimen = jsText.match(ONE_DIMEN_ARR_REGEX)
-                const oneDimenArrStr = oneDimen?.[1]
-                if (!oneDimenArrStr) throw new Error('failed: vKeyJs oneDimenArrStr')
-
-                const dataArr = oneDimenArrStr.split(',').map(Number)
-
-                const argAB = jsText.match(ARG_A_B_REGEX)
-                if (!argAB) throw new Error('failed: vKeyJs argAB')
-
-                const xorKey = parseInt(argAB[1])
-                const m = parseInt(argAB[2])
-
-                return dataArr.map((n) => String.fromCharCode((n - m) ^ xorKey)).join('')
-            },
-
-            /** ---------------- Parser 2 ---------------- */
-            function (jsText) {
-                const oneDimen = jsText.match(ONE_DIMEN_ARR_REGEX)
-                const oneDimenArrStr = oneDimen?.[1]
-                if (!oneDimenArrStr) throw new Error('failed: vKeyJs oneDimenArrStr')
-
-                const dataArr = oneDimenArrStr.split(',').map(Number)
-
-                const xorKeyMatch = jsText.match(ARG_A_REGEX)
-                const xorKey = xorKeyMatch ? parseInt(xorKeyMatch[2]) : null
-                if (!xorKey) throw new Error('failed: vKeyJs xorKey')
-
-                return dataArr.map((n) => String.fromCharCode(n ^ xorKey)).join('')
-            },
-
-            /** ---------------- Parser 3 ---------------- */
-            function (jsText) {
-                const base64Matches = [...jsText.matchAll(SPLIT_BASE64_REGEX)]
-                const base64Str = base64Matches.map((m) => m[1]).join('')
-
-                if (!base64Str) throw new Error('failed: SPLIT_BASE64_REGEX')
-
-                // const decoded = Buffer.from(base64Str, 'base64').toString('utf8')
-                const decoded = base64decode(base64Str)
-                const dataArr = decoded.split(',')
-
-                const part = jsText.split(".split(',')")[1].split('for')[0]
-                const varsMatch = part.match(/var\s+([a-zA-Z_$][\w$]*)\s*=\s*([^;]+);/g) || []
-
-                let varsMap = {}
-                varsMatch.forEach((v) => {
-                    const m = v.match(/var\s+([a-zA-Z_$][\w$]*)\s*=\s*([^;]+);/)
-                    if (m) {
-                        const name = m[1]
-                        const value = eval(m[2])
-                        varsMap[name] = value
-                    }
+        // 設置瀏覽器環境模擬
+        function setGlobal(name, value) {
+            try {
+                globalThis[name] = value
+                // 部分 getter 賦值不拋錯但也不生效，需驗證
+                if (globalThis[name] !== value) throw new Error('no-op')
+            } catch {
+                Object.defineProperty(globalThis, name, {
+                    value,
+                    writable: true,
+                    configurable: true,
+                    enumerable: false,
                 })
+            }
+        }
+        function setupBrowserEnv(playerUrl, debug = false) {
+            const storage = {}
+            let capturedData = null
+            let functionCalled = false
 
-                const varNames = Object.keys(varsMap)
-                const arg0 = varsMap[varNames[2]]
-                const arg1 = varsMap[varNames[1]]
-                const arg2 = varsMap[varNames[3]]
-
-                if (arg0 && arg1 && arg2) {
-                    let decoded = ''
-                    for (var i = 0; i < dataArr.length; i++) {
-                        var _$3b14 = parseInt(dataArr[i])
-                        var _$5860 = (_$3b14 - arg0) ^ arg1 ^ (i * arg2) % 256
-                        decoded += String.fromCharCode(_$5860)
+            const sessionStorageMock = {
+                setItem: (key, value) => {
+                    storage[key] = value
+                    functionCalled = true
+                    if (debug) $print(`[DEBUG] sessionStorage.setItem("${key}", ...)`)
+                    try {
+                        capturedData = JSON.parse(value)
+                    } catch (e) {
+                        capturedData = value
                     }
-                    return decoded
+                },
+                getItem: (key) => storage[key] || null,
+                removeItem: (key) => delete storage[key],
+                clear: () => Object.keys(storage).forEach((k) => delete storage[k]),
+            }
+
+            setGlobal('sessionStorage', sessionStorageMock)
+            setGlobal('localStorage', sessionStorageMock)
+            setGlobal('window', globalThis)
+            setGlobal('self', globalThis)
+            setGlobal('top', globalThis)
+            setGlobal('parent', globalThis)
+
+            setGlobal('document', {
+                body: { style: {} },
+                head: {},
+                cookie: '',
+                referrer: 'https://www.novipnoad.net/',
+                createElement: function (tag) {
+                    if (tag === 'canvas') {
+                        return {
+                            width: 300,
+                            height: 150,
+                            style: {},
+                            getContext: function (type) {
+                                if (type === '2d') {
+                                    return {
+                                        measureText: (text) => ({ width: text.length * 10 }),
+                                        fillText: () => {},
+                                        fillRect: () => {},
+                                        clearRect: () => {},
+                                        getImageData: () => ({ data: new Uint8ClampedArray(4) }),
+                                        putImageData: () => {},
+                                        font: '',
+                                        fillStyle: '',
+                                    }
+                                }
+                                if (type === 'webgl' || type === 'experimental-webgl') {
+                                    return {
+                                        getParameter: () => 'WebGL Mock',
+                                        getExtension: () => null,
+                                        getSupportedExtensions: () => [],
+                                    }
+                                }
+                                return null
+                            },
+                            toDataURL: () =>
+                                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+                        }
+                    }
+                    if (tag === 'script') {
+                        return { src: '', type: '', async: false, onload: null, onerror: null }
+                    }
+                    return { style: {}, getAttribute: () => null, setAttribute: () => {} }
+                },
+                getElementById: () => null,
+                getElementsByTagName: () => [],
+                querySelector: () => null,
+                querySelectorAll: () => [],
+                addEventListener: () => {},
+                removeEventListener: () => {},
+            })
+
+            setGlobal('navigator', {
+                userAgent:
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
+                plugins: { length: 3 },
+                mimeTypes: { length: 2 },
+                language: 'zh-TW',
+                languages: ['zh-TW', 'zh', 'en'],
+                platform: 'Win32',
+                hardwareConcurrency: 8,
+                deviceMemory: 8,
+                maxTouchPoints: 0,
+                webdriver: false,
+                cookieEnabled: true,
+                onLine: true,
+            })
+
+            setGlobal('performance', {
+                now: () => Date.now(),
+                timing: { navigationStart: Date.now() },
+                memory: { jsHeapSizeLimit: 2172649472, totalJSHeapSize: 20971520, usedJSHeapSize: 10485760 },
+            })
+
+            setGlobal('history', { length: 3, state: null, pushState: () => {}, replaceState: () => {} })
+
+            const parsedUrl = new URL(playerUrl)
+            setGlobal('location', {
+                href: playerUrl,
+                hostname: parsedUrl.hostname,
+                host: parsedUrl.host,
+                protocol: parsedUrl.protocol,
+                pathname: parsedUrl.pathname,
+                search: parsedUrl.search,
+                hash: '',
+                origin: parsedUrl.origin,
+            })
+
+            setGlobal('crypto', {
+                getRandomValues: (arr) => {
+                    for (let i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * 256)
+                    return arr
+                },
+                subtle: {},
+            })
+            setGlobal('getComputedStyle', () => ({
+                getPropertyValue: () => '',
+                display: 'block',
+                visibility: 'visible',
+            }))
+            setGlobal('screen', {
+                width: 1920,
+                height: 1080,
+                availWidth: 1920,
+                availHeight: 1040,
+                colorDepth: 24,
+                pixelDepth: 24,
+            })
+            setGlobal('devicePixelRatio', 1)
+            setGlobal('innerWidth', 1920)
+            setGlobal('innerHeight', 1080)
+            setGlobal('outerWidth', 1920)
+            setGlobal('outerHeight', 1080)
+
+            const _origGetProto = Object.getPrototypeOf.bind(Object)
+            Object.getPrototypeOf = (obj) => {
+                if (obj === null || obj === undefined) return null
+                return _origGetProto(obj)
+            }
+
+            setGlobal('XMLHttpRequest', function () {
+                return {
+                    open: () => {},
+                    send: () => {},
+                    setRequestHeader: () => {},
+                    addEventListener: () => {},
+                    readyState: 4,
+                    status: 200,
+                    responseText: '',
                 }
-            },
-        ]
+            })
+            setGlobal('fetch', () =>
+                Promise.resolve({ json: () => Promise.resolve({}), text: () => Promise.resolve('') }),
+            )
 
-        function extractVkeyJS(bodyHtml) {
-            const start = '/*-- 浏览器完整性检查 --*/'
-            const end = '</script>'
+            if (typeof globalThis.atob !== 'function') {
+                setGlobal('atob', _atob)
+            }
+            if (typeof globalThis.btoa !== 'function') {
+                setGlobal('btoa', _btoa)
+            }
+            setGlobal(
+                'MutationObserver',
+                class {
+                    observe() {}
+                    disconnect() {}
+                },
+            )
+            setGlobal(
+                'IntersectionObserver',
+                class {
+                    observe() {}
+                    disconnect() {}
+                },
+            )
+            setGlobal(
+                'ResizeObserver',
+                class {
+                    observe() {}
+                    disconnect() {}
+                },
+            )
+            setGlobal('addEventListener', () => {})
+            setGlobal('removeEventListener', () => {})
+            setGlobal('dispatchEvent', () => {})
 
-            const after = bodyHtml.split(start)[1] || ''
-            return after.split(end)[0] || ''
+            return () => {
+                if (!functionCalled && debug) {
+                    $print('[DEBUG] ✗ sessionStorage.setItem 未被調用，函數可能提前退出')
+                }
+                return capturedData
+            }
         }
 
-        function parseVKeyJs(bodyHtml) {
-            for (const parser of V_KEY_JS_PARSERS) {
+        async function extractVkeyJS(url, debug = false, maxRetries = 5) {
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                if (attempt > 1) {
+                    const delay = 800
+                    if (debug) $print(`[DEBUG] 第 ${attempt} 次嘗試，等待 ${delay}ms...`)
+                    await sleep(delay)
+                }
+
                 try {
-                    return parser(bodyHtml)
-                } catch (e) {}
+                    const result = await _extractOnce(url, debug)
+                    if (result.vkey && result.device) return result
+
+                    if (debug) $print(`[DEBUG] 第 ${attempt} 次嘗試返回 null，準備重試`)
+                } catch (err) {
+                    if (debug) $print(`[DEBUG] 第 ${attempt} 次嘗試失敗: ${err.message}`)
+                }
+            }
+        }
+        async function _extractOnce(url, debug) {
+            const player = await $fetch.get(url, {
+                headers: {
+                    'User-Agent':
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+                    referer: 'https://www.novipnoad.net',
+                },
+            })
+            const $player = cheerio.load(player.data)
+
+            let obfuscatedCode = null
+            $player('script').each((i, script) => {
+                const content = $player(script).html()
+                if (content && content.includes('/*-- 浏览器完整性检查 --*/')) {
+                    const match = content.match(/function __\(\) \{[\s\S]*?\n\}/)
+                    if (match) obfuscatedCode = match[0]
+                }
+            })
+
+            if (!obfuscatedCode) {
+                throw new Error('無法找到包含瀏覽器完整性檢查的 script 區塊')
+            }
+
+            if (debug) {
+                $print('[DEBUG] 混淆代碼長度:', obfuscatedCode.length)
+            }
+
+            const getCapturedData = setupBrowserEnv(playerUrl, debug)
+
+            try {
+                const fn = new Function(obfuscatedCode + '\nif (typeof __ === "function") __()')
+                fn()
+            } catch (evalErr) {
+                if (debug) $print(`[DEBUG] 執行錯誤（嘗試繼續）: ${evalErr.message}`)
+            }
+
+            await sleep(200)
+            const device = player.data.match(/params\['device'\] = '(\w+)';/)[1]
+
+            return {
+                device,
+                vkey: getCapturedData(),
             }
         }
 
         const playerUrl = `https://player.novipnoad.net/v1/?url=${vid}&pkey=${pkey}&ref=${ref}`
-        const player = await $fetch.get(playerUrl, {
-            headers: {
-                'User-Agent':
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
-                referer: 'https://www.novipnoad.net',
-            },
-        })
-
-        const device = player.data.match(/params\['device'\] = '(\w+)';/)[1]
-
-        const fnCode = extractVkeyJS(player.data)
-        const parsed = parseVKeyJs(fnCode)
-
-        const decodedStr = parsed.match(/setItem\('vkey','(.+?)'\);/)[1]
-        const vkey = JSON.parse(decodedStr)
+        const result = await extractVkeyJS(playerUrl, false, 10)
+        const vkey = result.vkey
 
         // get jsapi
-        const phpUrl = `https://player.novipnoad.net/v1/player.php?id=${vid}&device=${device}`
+        const phpUrl = `https://player.novipnoad.net/v1/player.php?id=${vid}&device=${result.device}`
         const phpres = await $fetch.get(phpUrl, {
             headers: {
                 'User-Agent':
@@ -328,7 +624,7 @@ async function getPlayinfo(ext) {
         playUrl = playUrl.quality[playUrl.defaultQuality].url
         $print(`playUrl: ${playUrl}`)
 
-        return jsonify({ urls: [playUrl] })
+        return jsonify({ urls: [playUrl], headers: { 'User-Agent': UA } })
     } catch (error) {
         $print(error)
     }
@@ -400,211 +696,8 @@ function _0x2b01e7(_0x12f758, _0xda9b8e) {
         _0x300ace[_0x1d31f3] = _0x300ace[_0x18815b]
         _0x300ace[_0x18815b] = _0x19fa71
         _0xe5da02 += String.fromCharCode(
-            _0x3bf069.charCodeAt(b) ^ _0x300ace[(_0x300ace[_0x1d31f3] + _0x300ace[_0x18815b]) % 256]
+            _0x3bf069.charCodeAt(b) ^ _0x300ace[(_0x300ace[_0x1d31f3] + _0x300ace[_0x18815b]) % 256],
         )
     }
     return _0xe5da02
-}
-
-function _atob(b64) {
-    var chars = {
-        ascii: function () {
-            return 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
-        },
-        indices: function () {
-            if (!this.cache) {
-                this.cache = {}
-                var ascii = chars.ascii()
-
-                for (var c = 0; c < ascii.length; c++) {
-                    var chr = ascii[c]
-                    this.cache[chr] = c
-                }
-            }
-            return this.cache
-        },
-    }
-    var indices = chars.indices(),
-        pos = b64.indexOf('='),
-        padded = pos > -1,
-        len = padded ? pos : b64.length,
-        i = -1,
-        data = ''
-
-    while (i < len) {
-        var code = (indices[b64[++i]] << 18) | (indices[b64[++i]] << 12) | (indices[b64[++i]] << 6) | indices[b64[++i]]
-        if (code !== 0) {
-            data += String.fromCharCode((code >>> 16) & 255, (code >>> 8) & 255, code & 255)
-        }
-    }
-
-    if (padded) {
-        data = data.slice(0, pos - b64.length)
-    }
-
-    return data
-}
-
-function base64decode(str) {
-    let base64DecodeChars = new Array(
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        62,
-        -1,
-        -1,
-        -1,
-        63,
-        52,
-        53,
-        54,
-        55,
-        56,
-        57,
-        58,
-        59,
-        60,
-        61,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18,
-        19,
-        20,
-        21,
-        22,
-        23,
-        24,
-        25,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        26,
-        27,
-        28,
-        29,
-        30,
-        31,
-        32,
-        33,
-        34,
-        35,
-        36,
-        37,
-        38,
-        39,
-        40,
-        41,
-        42,
-        43,
-        44,
-        45,
-        46,
-        47,
-        48,
-        49,
-        50,
-        51,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1
-    )
-    let c1, c2, c3, c4
-    let i, len, out
-    len = str.length
-    i = 0
-    out = ''
-    while (i < len) {
-        do {
-            c1 = base64DecodeChars[str.charCodeAt(i++) & 0xff]
-        } while (i < len && c1 == -1)
-        if (c1 == -1) break
-        do {
-            c2 = base64DecodeChars[str.charCodeAt(i++) & 0xff]
-        } while (i < len && c2 == -1)
-        if (c2 == -1) break
-        out += String.fromCharCode((c1 << 2) | ((c2 & 0x30) >> 4))
-        do {
-            c3 = str.charCodeAt(i++) & 0xff
-            if (c3 == 61) return out
-            c3 = base64DecodeChars[c3]
-        } while (i < len && c3 == -1)
-        if (c3 == -1) break
-        out += String.fromCharCode(((c2 & 0xf) << 4) | ((c3 & 0x3c) >> 2))
-        do {
-            c4 = str.charCodeAt(i++) & 0xff
-            if (c4 == 61) return out
-            c4 = base64DecodeChars[c4]
-        } while (i < len && c4 == -1)
-        if (c4 == -1) break
-        out += String.fromCharCode(((c3 & 0x03) << 6) | c4)
-    }
-    return out
 }
