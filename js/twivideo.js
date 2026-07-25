@@ -1,11 +1,12 @@
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0'
-const config = argsify($config_str)
+const UA =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0'
+let viewToken = ''
 const cheerio = createCheerio()
 
 let appConfig = {
-    ver: 20250321,
+    ver: 20260724,
     title: 'twivideo',
-    site: 'https://twivideo.net/',
+    site: 'https://twivideo.net',
     tabs: [
         {
             name: '新着DL',
@@ -59,6 +60,7 @@ let appConfig = {
 }
 
 async function getConfig() {
+    await get_view_token()
     return jsonify(appConfig)
 }
 
@@ -82,13 +84,14 @@ async function getCards(ext) {
                 le: 1000,
                 ty: ty,
                 offset_int: offset,
+                view_token: viewToken,
             },
             {
                 headers: {
                     'User-Agent': UA,
                     Referer: appConfig.site + '/',
                 },
-            }
+            },
         )
 
         const $ = cheerio.load(data)
@@ -145,7 +148,7 @@ async function getPlayinfo(ext) {
     ext = argsify(ext)
     let { id } = ext
 
-    return jsonify({ urls: [id], headers: [{ 'User-Agent': UA }] })
+    return jsonify({ urls: [appConfig.site + id], headers: [{ 'User-Agent': UA }] })
 }
 
 async function search(ext) {
@@ -166,7 +169,7 @@ async function search(ext) {
                 'User-Agent': UA,
                 Referer: appConfig.site + '/',
             },
-        }
+        },
     )
 
     const $ = cheerio.load(data)
@@ -183,4 +186,23 @@ async function search(ext) {
     return jsonify({
         list: cards,
     })
+}
+
+async function get_view_token() {
+    const resp = await $fetch.post(
+        'https://twivideo.net/templates/ajax_view_token.php',
+        {},
+        {
+            headers: {
+                'User-Agent': UA,
+                Referer: appConfig.site + '/?ranking',
+            },
+        },
+    )
+    const data = resp.data
+    const json = argsify(data)
+    if (json && json.ok && json.token) {
+        viewToken = json.token
+    }
+    return
 }
