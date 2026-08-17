@@ -144,6 +144,7 @@ async function search(ext) {
             let name = $(e).find('.entry-footer .cat-links a').text()
             let href = $(e).find('.entry-footer .cat-links a').attr('href')
 
+            if (!name || !href) return
             cards.push({
                 vod_id: href,
                 vod_name: name,
