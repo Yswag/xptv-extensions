@@ -2,16 +2,17 @@ const cheerio = createCheerio()
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)'
 
-function sleep(ms) {
-    const end = Date.now() + ms
-    while (Date.now() < end) {}
-}
+const CHROME_UA =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+// RC4 解密 key 的最後已知值
+const DEFAULT_DECRYPT_KEY = 'ce974576'
+
+function sleep(ms) {}
 
 // https://github.com/NanoCat-Me/utils/blob/main/URL.mjs
 class URL {
     constructor(url, base = undefined) {
-        const name = 'URL'
-        const version = '2.1.2'
         // $print(`\n🟧 ${name} v${version}\n`)
         url = this.#parse(url, base)
         return this
@@ -221,18 +222,21 @@ async function getCards(ext) {
 
     const $ = cheerio.load(data)
     $('.video-listing-content .video-item').each((_, element) => {
-        const id = $(element).find('h3 a').attr('rel')
+        // 直接取卡片真實連結（不同分類路徑不同：/movie/、/anime/、/tv/...）
+        const link = $(element).find('.item-thumbnail a').attr('href') || $(element).find('h3 a').attr('href')
+        const id = $(element).find('h3 a').attr('rel') || (link ? link.match(/\/(\d+)\.html/)?.[1] : null)
         const title = $(element).find('h3 a').attr('title')
         const cover = $(element).find('img').attr('data-original')
         const subTitle = $(element).find('span.remarks').text()
+        if (!id || !link) return
         cards.push({
             vod_id: id,
             vod_name: title.replace(/^(【.*?】)/g, '').trim(),
             vod_pic: cover,
             vod_remarks: subTitle,
-            url: `${appConfig.site}/movie/${id}.html`,
+            url: link,
             ext: {
-                url: `${appConfig.site}/movie/${id}.html`,
+                url: link,
             },
         })
     })
@@ -257,25 +261,51 @@ async function getTracks(ext) {
     }
 
     const $ = cheerio.load(data)
-    let playInfo = $('.item-content script').text()
-    let pkey = playInfo.match(/pkey:"(.*)"/)[1]
-    let ref = $('meta[property="og:url"]')
-        .attr('content')
-        .match(/\.net(.*)/)[1]
 
-    if (playInfo.includes('vid:')) {
-        let vid = playInfo.match(/vid:"(.*)",/)[1]
+    // 站方格式：<script>window.playInfo={vid:"xxx",pkey:"xxx"};</script>
+    let vid = ''
+    let pkey = ''
+    const playInfoMatch =
+        data.match(/window\.playInfo\s*=\s*(\{[^<]*?\})\s*;\s*<\/script>/) ||
+        data.match(/window\.playInfo\s*=\s*(\{[^<]*?\})\s*;/)
+    if (playInfoMatch) {
+        try {
+            // key 無引號的類 JSON，僅轉換 { 或 , 後的 key
+            const json = playInfoMatch[1].replace(/([{,])\s*(\w+)\s*:/g, '$1"$2":')
+            const info = JSON.parse(json)
+            vid = info.vid || ''
+            pkey = info.pkey || ''
+        } catch (e) {
+            $print('playInfo parse error: ' + e)
+        }
+    }
+    if (!pkey) {
+        // 舊格式 fallback
+        const legacy = $('.item-content script').text()
+        const pkeyMatch = legacy.match(/pkey:"(.*)"/) || data.match(/pkey:"([^"]*)"/)
+        if (pkeyMatch) pkey = pkeyMatch[1]
+        if (!vid && legacy.includes('vid:')) {
+            const vidMatch = legacy.match(/vid:"(.*)",/)
+            if (vidMatch) vid = vidMatch[1]
+        }
+    }
+
+    // ref 傳完整頁面 URL（og:url 優先，fallback 當前請求 url）
+    let pageUrl = $('meta[property="og:url"]').attr('content') || ''
+    if (!pageUrl && ext.url) pageUrl = String(ext.url).startsWith('http') ? ext.url : `${appConfig.site}${ext.url}`
+
+    if (vid) {
         tracks.push({
             name: `播放`,
             pan: '',
             ext: {
                 vid,
                 pkey,
-                ref,
+                ref: pageUrl,
             },
         })
     } else {
-        let btns = $('.multilink-btn')
+        const btns = $('.multilink-btn[data-vid]')
         btns.each((_, element) => {
             let name = $(element).text()
             let vid = $(element).attr('data-vid')
@@ -285,7 +315,7 @@ async function getTracks(ext) {
                 ext: {
                     vid,
                     pkey,
-                    ref,
+                    ref: pageUrl,
                 },
             })
         })
@@ -306,36 +336,37 @@ async function getPlayinfo(ext) {
     const { vid, pkey, ref } = ext
 
     try {
-        // get vkey
-        // 設置瀏覽器環境模擬
+        if (!vid || !pkey || !ref) throw new Error('缺少 vid/pkey/ref')
+
+        // RC4 解密 key：優先從 GitHub 取最新（站方會輪換），失敗用預設
+        const rc4Key = await getDecryptKey()
+
         function setGlobal(name, value) {
             try {
-                globalThis[name] = value
-                // 部分 getter 賦值不拋錯但也不生效，需驗證
-                if (globalThis[name] !== value) throw new Error('no-op')
-            } catch {
                 Object.defineProperty(globalThis, name, {
-                    value,
-                    writable: true,
+                    get: () => value,
                     configurable: true,
-                    enumerable: false,
                 })
+            } catch (e) {}
+            if (globalThis[name] === undefined) {
+                try {
+                    globalThis[name] = value
+                } catch (e2) {}
             }
         }
-        function setupBrowserEnv(playerUrl, debug = false) {
+        function setupBrowserEnv() {
             const storage = {}
             let capturedData = null
-            let functionCalled = false
 
             const sessionStorageMock = {
                 setItem: (key, value) => {
                     storage[key] = value
-                    functionCalled = true
-                    if (debug) $print(`[DEBUG] sessionStorage.setItem("${key}", ...)`)
-                    try {
-                        capturedData = JSON.parse(value)
-                    } catch (e) {
-                        capturedData = value
+                    if (key === 'vkey') {
+                        try {
+                            capturedData = JSON.parse(value)
+                        } catch (e) {
+                            capturedData = value
+                        }
                     }
                 },
                 getItem: (key) => storage[key] || null,
@@ -343,18 +374,52 @@ async function getPlayinfo(ext) {
                 clear: () => Object.keys(storage).forEach((k) => delete storage[k]),
             }
 
-            setGlobal('sessionStorage', sessionStorageMock)
-            setGlobal('localStorage', sessionStorageMock)
+            // 檢查變體要求 String(sessionStorage) === '[object Storage]'
+            const storageObj = {}
+            storageObj[Symbol.toStringTag] = 'Storage'
+            Object.assign(storageObj, sessionStorageMock)
+
+            setGlobal('sessionStorage', storageObj)
+            setGlobal('localStorage', storageObj)
+
+            // 檢查變體要求 MutationObserver.prototype.toString 含 [native code]
+            const observeFn = function observe() {}
+            const _origFTS = Function.prototype.toString
+            try {
+                Function.prototype.toString = function () {
+                    if (this === observeFn) return 'function observe() { [native code] }'
+                    return _origFTS.call(this)
+                }
+            } catch (e) {}
+            function MutationObserverPolyfill() {}
+            MutationObserverPolyfill.prototype.observe = observeFn
+            MutationObserverPolyfill.prototype.disconnect = function disconnect() {}
+
+            // 檢查變體要求 FileReader/Element/Node 存在
+            // 且 Element.prototype.__proto__ === Node.prototype
+            function NodePolyfill() {}
+            function ElementPolyfill() {}
+            ElementPolyfill.prototype = Object.create(NodePolyfill.prototype)
+            function FileReaderPolyfill() {}
+
+            setGlobal('MutationObserver', MutationObserverPolyfill)
+            setGlobal('Node', NodePolyfill)
+            setGlobal('Element', ElementPolyfill)
+            setGlobal('FileReader', FileReaderPolyfill)
+
             setGlobal('window', globalThis)
             setGlobal('self', globalThis)
-            setGlobal('top', globalThis)
-            setGlobal('parent', globalThis)
+            // ★ 核心修復：站方邏輯為 if (window.top !== window.self) 才寫入 vkey，
+            //   top 必須與 self 是不同物件 ★
+            setGlobal('top', {})
 
             setGlobal('document', {
                 body: { style: {} },
                 head: {},
                 cookie: '',
-                referrer: 'https://www.novipnoad.net/',
+                referrer: appConfig.site + '/',
+                visibilityState: 'visible',
+                hidden: false,
                 createElement: function (tag) {
                     if (tag === 'canvas') {
                         return {
@@ -366,12 +431,17 @@ async function getPlayinfo(ext) {
                                     return {
                                         measureText: (text) => ({ width: text.length * 10 }),
                                         fillText: () => {},
+                                        strokeText: () => {},
                                         fillRect: () => {},
                                         clearRect: () => {},
+                                        beginPath: () => {},
+                                        arc: () => {},
+                                        fill: () => {},
                                         getImageData: () => ({ data: new Uint8ClampedArray(4) }),
                                         putImageData: () => {},
                                         font: '',
                                         fillStyle: '',
+                                        textBaseline: '',
                                     }
                                 }
                                 if (type === 'webgl' || type === 'experimental-webgl') {
@@ -401,8 +471,7 @@ async function getPlayinfo(ext) {
             })
 
             setGlobal('navigator', {
-                userAgent:
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36',
+                userAgent: CHROME_UA,
                 plugins: { length: 3 },
                 mimeTypes: { length: 2 },
                 language: 'zh-TW',
@@ -419,9 +488,7 @@ async function getPlayinfo(ext) {
             setGlobal('performance', {
                 now: () => Date.now(),
                 timing: { navigationStart: Date.now() },
-                memory: { jsHeapSizeLimit: 2172649472, totalJSHeapSize: 20971520, usedJSHeapSize: 10485760 },
             })
-
             setGlobal('history', { length: 3, state: null, pushState: () => {}, replaceState: () => {} })
 
             const parsedUrl = new URL(playerUrl)
@@ -433,7 +500,7 @@ async function getPlayinfo(ext) {
                 pathname: parsedUrl.pathname,
                 search: parsedUrl.search,
                 hash: '',
-                origin: parsedUrl.origin,
+                origin: parsedUrl.protocol + '//' + parsedUrl.host,
             })
 
             setGlobal('crypto', {
@@ -443,11 +510,6 @@ async function getPlayinfo(ext) {
                 },
                 subtle: {},
             })
-            setGlobal('getComputedStyle', () => ({
-                getPropertyValue: () => '',
-                display: 'block',
-                visibility: 'visible',
-            }))
             setGlobal('screen', {
                 width: 1920,
                 height: 1080,
@@ -459,29 +521,10 @@ async function getPlayinfo(ext) {
             setGlobal('devicePixelRatio', 1)
             setGlobal('innerWidth', 1920)
             setGlobal('innerHeight', 1080)
-            setGlobal('outerWidth', 1920)
-            setGlobal('outerHeight', 1080)
 
-            const _origGetProto = Object.getPrototypeOf.bind(Object)
-            Object.getPrototypeOf = (obj) => {
-                if (obj === null || obj === undefined) return null
-                return _origGetProto(obj)
+            if (typeof globalThis.requestAnimationFrame !== 'function') {
+                setGlobal('requestAnimationFrame', (cb) => 1)
             }
-
-            setGlobal('XMLHttpRequest', function () {
-                return {
-                    open: () => {},
-                    send: () => {},
-                    setRequestHeader: () => {},
-                    addEventListener: () => {},
-                    readyState: 4,
-                    status: 200,
-                    responseText: '',
-                }
-            })
-            setGlobal('fetch', () =>
-                Promise.resolve({ json: () => Promise.resolve({}), text: () => Promise.resolve('') }),
-            )
 
             if (typeof globalThis.atob !== 'function') {
                 setGlobal('atob', _atob)
@@ -489,13 +532,6 @@ async function getPlayinfo(ext) {
             if (typeof globalThis.btoa !== 'function') {
                 setGlobal('btoa', _btoa)
             }
-            setGlobal(
-                'MutationObserver',
-                class {
-                    observe() {}
-                    disconnect() {}
-                },
-            )
             setGlobal(
                 'IntersectionObserver',
                 class {
@@ -514,94 +550,91 @@ async function getPlayinfo(ext) {
             setGlobal('removeEventListener', () => {})
             setGlobal('dispatchEvent', () => {})
 
-            return () => {
-                if (!functionCalled && debug) {
-                    $print('[DEBUG] ✗ sessionStorage.setItem 未被調用，函數可能提前退出')
-                }
-                return capturedData
-            }
+            return () => capturedData
         }
 
-        async function extractVkeyJS(url, debug = false, maxRetries = 5) {
+        async function extractVkeyJS(pageUrl, debug = false, maxRetries = 4) {
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                if (attempt > 1) {
-                    const delay = 800
-                    if (debug) $print(`[DEBUG] 第 ${attempt} 次嘗試，等待 ${delay}ms...`)
-                    await sleep(delay)
-                }
+                if (attempt > 1) sleep(800)
 
                 try {
-                    const result = await _extractOnce(url, debug)
-                    if (result.vkey && result.device) return result
+                    const result = await _extractOnce(pageUrl, debug)
+                    if (result && result.vkey && result.device) return result
 
-                    if (debug) $print(`[DEBUG] 第 ${attempt} 次嘗試返回 null，準備重試`)
+                    if (debug) $print(`[DEBUG] 第 ${attempt} 次嘗試 vkey 為空，準備重試`)
                 } catch (err) {
                     if (debug) $print(`[DEBUG] 第 ${attempt} 次嘗試失敗: ${err.message}`)
                 }
             }
+            return null
         }
-        async function _extractOnce(url, debug) {
-            const player = await $fetch.get(url, {
+
+        async function _extractOnce(pageUrl, debug) {
+            const playerRes = await $fetch.get(pageUrl, {
                 headers: {
-                    'User-Agent':
-                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
-                    referer: 'https://www.novipnoad.net',
+                    'User-Agent': CHROME_UA,
+                    referer: appConfig.site + '/',
                 },
             })
-            const $player = cheerio.load(player.data)
+            const pageHtml = playerRes.data
 
-            let obfuscatedCode = null
-            $player('script').each((i, script) => {
-                const content = $player(script).html()
-                if (content && content.includes('/*-- 浏览器完整性检查 --*/')) {
-                    const match = content.match(/function __\(\) \{[\s\S]*?\n\}/)
-                    if (match) obfuscatedCode = match[0]
-                }
-            })
+            const deviceMatch = pageHtml.match(/params\['device'\]\s*=\s*'(\w+)'/)
+            if (!deviceMatch) throw new Error('找不到 device')
+            const device = deviceMatch[1]
 
-            if (!obfuscatedCode) {
-                throw new Error('無法找到包含瀏覽器完整性檢查的 script 區塊')
+            // 提取完整性檢查 JS：marker 後到 </script>（對齊官方 plugin 做法）
+            let integrityJs = ''
+            if (pageHtml.includes('/*-- 浏览器完整性检查 --*/')) {
+                integrityJs = pageHtml.split('/*-- 浏览器完整性检查 --*/')[1].split('</script>')[0]
+            } else {
+                // 舊格式 fallback
+                const legacy = pageHtml.match(/function __\(\) \{([\s\S]*?)\n\}/)
+                if (legacy) integrityJs = legacy[0]
             }
+            if (!integrityJs) throw new Error('無法找到瀏覽器完整性檢查的 script')
 
-            if (debug) {
-                $print('[DEBUG] 混淆代碼長度:', obfuscatedCode.length)
-            }
-
-            const getCapturedData = setupBrowserEnv(playerUrl, debug)
+            const getCapturedData = setupBrowserEnv()
 
             try {
-                const fn = new Function(obfuscatedCode + '\nif (typeof __ === "function") __()')
+                const fn = new Function(integrityJs + '\nif (typeof __ === "function") __()')
                 fn()
             } catch (evalErr) {
                 if (debug) $print(`[DEBUG] 執行錯誤（嘗試繼續）: ${evalErr.message}`)
             }
 
-            await sleep(200)
-            const device = player.data.match(/params\['device'\] = '(\w+)';/)[1]
-
-            return {
-                device,
-                vkey: getCapturedData(),
+            sleep(200)
+            let vkey = getCapturedData()
+            if (typeof vkey === 'string') {
+                // 格式2：sessionStorage.setItem('vkey', JSON.stringify({ckey:'..',ref:'..',ip:'..',time:'..'}))
+                const m = vkey.match(/\{ckey:'(\w+)',ref:'(.*?)',ip:'(.*?)',time:'(\d+)'\}/)
+                if (m) vkey = { ckey: m[1], ref: m[2], ip: m[3], time: m[4] }
             }
+            if (!vkey || !vkey.ckey) throw new Error('vkey 未取得')
+
+            return { device, vkey }
         }
 
-        const playerUrl = `https://player.novipnoad.net/v1/?url=${vid}&pkey=${pkey}&ref=${ref}`
-        const result = await extractVkeyJS(playerUrl, false, 10)
+        const playerUrl = `https://player.novipnoad.net/v1/?url=${vid}&pkey=${pkey}&ref=${encodeURIComponent(ref)}`
+        const result = await extractVkeyJS(playerUrl, false, 4)
+        if (!result) throw new Error('vkey 提取失敗')
         const vkey = result.vkey
 
         // get jsapi
+        sleep(200)
         const phpUrl = `https://player.novipnoad.net/v1/player.php?id=${vid}&device=${result.device}`
         const phpres = await $fetch.get(phpUrl, {
             headers: {
-                'User-Agent':
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+                'User-Agent': CHROME_UA,
                 referer: playerUrl,
             },
         })
 
-        let jsapi = phpres.data.match(/jsapi = '(.*)';/)[1]
-        jsapi =
-            jsapi +
+        const jsapiMatch =
+            phpres.data.match(/const\s+jsapi\s*=\s*'(.*?)'\s*;/) || phpres.data.match(/jsapi\s*=\s*'(.*?)'/)
+        if (!jsapiMatch) throw new Error('jsapi 未取得')
+
+        const jsUrl =
+            jsapiMatch[1] +
             '?ckey=' +
             vkey.ckey.toUpperCase() +
             '&ref=' +
@@ -612,22 +645,57 @@ async function getPlayinfo(ext) {
             vkey.time
 
         // get play url
-        const jsres = await $fetch.get(jsapi, {
+        sleep(200)
+        const jsres = await $fetch.get(jsUrl, {
             headers: {
-                'User-Agent':
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
-                referer: 'https://www.novipnoad.net',
+                'User-Agent': CHROME_UA,
+                referer: 'https://player.novipnoad.net/',
             },
         })
-        let playUrl = jsres.data.match(/decrypt\("(.*)"\)/)[1]
-        playUrl = decryptUrl(playUrl)
-        playUrl = playUrl.quality[playUrl.defaultQuality].url
-        $print(`playUrl: ${playUrl}`)
+        const videoMatch = jsres.data.match(/var\s+videoUrl\s*=\s*JSON\.decrypt\(\s*['"](.*?)['"]\s*\)\s*;/)
+        if (!videoMatch) throw new Error('videoUrl 未取得')
+        const videoJson = decryptUrl(videoMatch[1], rc4Key)
+        if (!videoJson.quality || videoJson.quality.length === 0) throw new Error('quality 列表為空')
+        const idx = videoJson.defaultQuality < videoJson.quality.length ? videoJson.defaultQuality : 0
+        const playUrl = videoJson.quality[idx].url
+        console.log(`playUrl: ${playUrl}`)
 
-        return jsonify({ urls: [playUrl], headers: { 'User-Agent': UA } })
+        return jsonify({
+            urls: [playUrl],
+            headers: {
+                'User-Agent': CHROME_UA,
+                Referer: 'https://player.novipnoad.net/',
+                Origin: 'https://player.novipnoad.net',
+            },
+        })
     } catch (error) {
-        $print(error)
+        console.log('getPlayinfo error: ' + error)
+        return jsonify({ urls: [] })
     }
+}
+
+// 動態取得站方 RC4 key（對齊 plugin 的多源 fallback，含快取）
+let _cachedDecryptKey = null
+async function getDecryptKey() {
+    if (_cachedDecryptKey) return _cachedDecryptKey
+    const keyUrls = [
+        'https://raw.githubusercontent.com/muedsa/novipnoad-plugin/refs/heads/main/key',
+        'https://ghfast.top/https://raw.githubusercontent.com/muedsa/novipnoad-plugin/refs/heads/main/key',
+        'https://gh-proxy.com/raw.githubusercontent.com/muedsa/novipnoad-plugin/refs/heads/main/key',
+    ]
+    for (const url of keyUrls) {
+        try {
+            const { data } = await $fetch.get(url, {
+                headers: { 'User-Agent': UA },
+            })
+            const key = String(data).trim()
+            if (/^[0-9a-f]{8}$/.test(key)) {
+                _cachedDecryptKey = key
+                return key
+            }
+        } catch (e) {}
+    }
+    return DEFAULT_DECRYPT_KEY
 }
 
 async function search(ext) {
@@ -670,10 +738,10 @@ async function search(ext) {
     })
 }
 
-function decryptUrl(_0x395610) {
-    // jq
-    var _0x15159f = 'ce974576'
+function decryptUrl(_0x395610, key) {
+    var _0x15159f = key || DEFAULT_DECRYPT_KEY
     var _0x36346e = _0x2b01e7(_0x395610, _0x15159f)
+    if (!_0x36346e.startsWith('{')) throw new Error('解密失敗，key 可能已更換')
     return JSON.parse(_0x36346e)
 }
 

@@ -157,10 +157,7 @@ async function getConfig() {
     if (!token) await refreshToken()
 
     const params = { timestamp: ts() }
-    const resp = await $fetch.get(host + '/vod-app/type/list?' + qs(params), {
-        headers: getHeaders(params),
-    })
-    const json = typeof resp.data === 'string' ? JSON.parse(resp.data) : resp.data
+    const json = await apiReq(host + '/vod-app/type/list', params)
 
     const tabs = []
     const items = json.data || []
