@@ -5,7 +5,7 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/6
 const CHROME_UA =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
-// RC4 解密 key 的最後已知值
+// 站方 RC4 解密 key 的最後已知值
 const DEFAULT_DECRYPT_KEY = 'ce974576'
 
 function sleep(ms) {}
@@ -338,7 +338,7 @@ async function getPlayinfo(ext) {
     try {
         if (!vid || !pkey || !ref) throw new Error('缺少 vid/pkey/ref')
 
-        // RC4 解密 key：優先從 GitHub 取最新（站方會輪換），失敗用預設
+        // RC4 解密 key
         const rc4Key = await getDecryptKey()
 
         function setGlobal(name, value) {
@@ -355,41 +355,75 @@ async function getPlayinfo(ext) {
             }
         }
         function setupBrowserEnv() {
+            // STACK 檢查：錯誤堆疊不得含 'evalmachine.'（QuickJS）或 'node:internal'（Node）。
+            // 不支援 prepareStackTrace 的引擎賦值無效，安全無副作用。
+            try {
+                Error.prepareStackTrace = function (err, trace) {
+                    return (err && err.name ? err.name : 'Error') + '\n    at __ (' + playerUrl + ':1:1)'
+                }
+            } catch (e) {}
+
             const storage = {}
             let capturedData = null
+            let capturedCkey = null
 
-            const sessionStorageMock = {
-                setItem: (key, value) => {
-                    storage[key] = value
-                    if (key === 'vkey') {
-                        try {
-                            capturedData = JSON.parse(value)
-                        } catch (e) {
-                            capturedData = value
-                        }
+            // Storage 類：sessionStorage instanceof Storage 須成立，
+            // 且 Storage.prototype.setItem.call({},...) 須拋 TypeError（NATIVE 檢查）
+            function StoragePolyfill() {}
+            StoragePolyfill.prototype.setItem = function setItem(key, value) {
+                if (!(this instanceof StoragePolyfill)) {
+                    throw new TypeError("Failed to execute 'setItem' on 'Storage': illegal invocation")
+                }
+                storage[key] = value
+                if (key === 'vkey') {
+                    try {
+                        capturedData = JSON.parse(value)
+                    } catch (e) {
+                        capturedData = value
                     }
-                },
-                getItem: (key) => storage[key] || null,
-                removeItem: (key) => delete storage[key],
-                clear: () => Object.keys(storage).forEach((k) => delete storage[k]),
+                }
             }
+            StoragePolyfill.prototype.getItem = function getItem(key) {
+                if (!(this instanceof StoragePolyfill)) {
+                    throw new TypeError("Failed to execute 'getItem' on 'Storage': illegal invocation")
+                }
+                return storage[key] || null
+            }
+            StoragePolyfill.prototype.removeItem = function removeItem(key) {
+                if (!(this instanceof StoragePolyfill)) {
+                    throw new TypeError("Failed to execute 'removeItem' on 'Storage': illegal invocation")
+                }
+                delete storage[key]
+            }
+            StoragePolyfill.prototype.clear = function clear() {
+                Object.keys(storage).forEach((k) => delete storage[k])
+            }
+            const sessionStorageMock = new StoragePolyfill()
 
             // 檢查變體要求 String(sessionStorage) === '[object Storage]'
-            const storageObj = {}
+            // 且 sessionStorage instanceof Storage === true
+            const storageObj = new StoragePolyfill()
             storageObj[Symbol.toStringTag] = 'Storage'
-            Object.assign(storageObj, sessionStorageMock)
 
             setGlobal('sessionStorage', storageObj)
             setGlobal('localStorage', storageObj)
+            setGlobal('Storage', StoragePolyfill)
 
             // 檢查變體要求 MutationObserver.prototype.toString 含 [native code]
+            // 以及 Function.prototype.toString 自身須通過原生自檢
+            // （name==='toString'、length===0、無 prototype、new 拋 TypeError、
+            //   call 自身含 [native code]）
             const observeFn = function observe() {}
             const _origFTS = Function.prototype.toString
-            try {
-                Function.prototype.toString = function () {
+            const _ftsHost = {
+                toString() {
+                    if (this === _ftsHost.toString) return 'function toString() { [native code] }'
                     if (this === observeFn) return 'function observe() { [native code] }'
                     return _origFTS.call(this)
-                }
+                },
+            }
+            try {
+                Function.prototype.toString = _ftsHost.toString
             } catch (e) {}
             function MutationObserverPolyfill() {}
             MutationObserverPolyfill.prototype.observe = observeFn
@@ -397,29 +431,70 @@ async function getPlayinfo(ext) {
 
             // 檢查變體要求 FileReader/Element/Node 存在
             // 且 Element.prototype.__proto__ === Node.prototype
+            // NATIVE 檢查：Node.prototype.appendChild.call({},{}) 須拋 TypeError
             function NodePolyfill() {}
+            NodePolyfill.prototype.appendChild = function appendChild(child) {
+                if (!(this instanceof NodePolyfill)) {
+                    throw new TypeError("Failed to execute 'appendChild' on 'Node': illegal invocation")
+                }
+                return child
+            }
             function ElementPolyfill() {}
             ElementPolyfill.prototype = Object.create(NodePolyfill.prototype)
             function FileReaderPolyfill() {}
+            function HTMLDocumentPolyfill() {}
+            function WindowPolyfill() {}
+            // window instanceof Window 檢查（Symbol.hasInstance 由 JSC 支援）
+            try {
+                Object.defineProperty(WindowPolyfill, Symbol.hasInstance, {
+                    value: function (instance) {
+                        return instance === globalThis || instance instanceof WindowPolyfill
+                    },
+                    configurable: true,
+                })
+            } catch (e) {}
 
             setGlobal('MutationObserver', MutationObserverPolyfill)
             setGlobal('Node', NodePolyfill)
             setGlobal('Element', ElementPolyfill)
             setGlobal('FileReader', FileReaderPolyfill)
+            setGlobal('HTMLDocument', HTMLDocumentPolyfill)
+            setGlobal('Window', WindowPolyfill)
 
             setGlobal('window', globalThis)
             setGlobal('self', globalThis)
-            // ★ 核心修復：站方邏輯為 if (window.top !== window.self) 才寫入 vkey，
+            //   if (window.top !== window.self) 才寫入 vkey，
             //   top 必須與 self 是不同物件 ★
             setGlobal('top', {})
 
-            setGlobal('document', {
-                body: { style: {} },
+            const docMock = {
+                // PROTO 檢查：String(document) === '[object HTMLDocument]'
+                [Symbol.toStringTag]: 'HTMLDocument',
+                body: {
+                    style: {},
+                    appendChild: function (el) {
+                        return el
+                    },
+                    removeChild: function (el) {
+                        return el
+                    },
+                },
+                documentElement: {
+                    appendChild: function (el) {
+                        return el
+                    },
+                    removeChild: function (el) {
+                        return el
+                    },
+                },
                 head: {},
                 cookie: '',
                 referrer: appConfig.site + '/',
                 visibilityState: 'visible',
                 hidden: false,
+                // PROTO 檢查：nodeType===9、instanceof HTMLDocument、[object HTMLDocument]
+                nodeType: 9,
+                // LAYOUT 檢查：div 的 cssText + offsetWidth/offsetHeight
                 createElement: function (tag) {
                     if (tag === 'canvas') {
                         return {
@@ -437,7 +512,14 @@ async function getPlayinfo(ext) {
                                         beginPath: () => {},
                                         arc: () => {},
                                         fill: () => {},
-                                        getImageData: () => ({ data: new Uint8ClampedArray(4) }),
+                                        // 新變體檢查：getImageData 須回傳完整像素資料
+                                        // 且 alpha 總和 > 20
+                                        getImageData: function (x, y, w, h) {
+                                            const size = Math.max(w || 1, 1) * Math.max(h || 1, 1) * 4
+                                            const data = new Uint8ClampedArray(size)
+                                            for (let i = 3; i < size; i += 4) data[i] = 255
+                                            return { data: data, width: w, height: h }
+                                        },
                                         putImageData: () => {},
                                         font: '',
                                         fillStyle: '',
@@ -460,15 +542,46 @@ async function getPlayinfo(ext) {
                     if (tag === 'script') {
                         return { src: '', type: '', async: false, onload: null, onerror: null }
                     }
-                    return { style: {}, getAttribute: () => null, setAttribute: () => {} }
+                    // 通用元素（含 div）：LAYOUT 檢查用
+                    return {
+                        style: {
+                            set cssText(v) {},
+                            get cssText() {
+                                return ''
+                            },
+                        },
+                        offsetWidth: 120,
+                        offsetHeight: 40,
+                        getAttribute: () => null,
+                        setAttribute: () => {},
+                    }
                 },
-                getElementById: () => null,
+                // 新變體透過 play_iframe 的 postMessage 傳遞 ckey
+                getElementById: function (id) {
+                    if (id === 'play_iframe') {
+                        return {
+                            contentWindow: {
+                                postMessage: function (msg, origin) {
+                                    if (msg && typeof msg === 'object' && msg.ckey) {
+                                        capturedCkey = msg.ckey
+                                    }
+                                },
+                            },
+                        }
+                    }
+                    return null
+                },
                 getElementsByTagName: () => [],
                 querySelector: () => null,
                 querySelectorAll: () => [],
                 addEventListener: () => {},
                 removeEventListener: () => {},
-            })
+            }
+            // instanceof HTMLDocument 檢查
+            try {
+                Object.setPrototypeOf(docMock, HTMLDocumentPolyfill.prototype)
+            } catch (e) {}
+            setGlobal('document', docMock)
 
             setGlobal('navigator', {
                 userAgent: CHROME_UA,
@@ -550,10 +663,16 @@ async function getPlayinfo(ext) {
             setGlobal('removeEventListener', () => {})
             setGlobal('dispatchEvent', () => {})
 
-            return () => capturedData
+            return () => {
+                // 合併：vkey JSON（ref/ip/time，新變體不含 ckey）+ postMessage 攔截的 ckey
+                if (capturedData && typeof capturedData === 'object' && !capturedData.ckey && capturedCkey) {
+                    capturedData.ckey = capturedCkey
+                }
+                return capturedData
+            }
         }
 
-        async function extractVkeyJS(pageUrl, debug = false, maxRetries = 4) {
+        async function extractVkeyJS(pageUrl, debug = false, maxRetries = 8) {
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 if (attempt > 1) sleep(800)
 
@@ -582,7 +701,7 @@ async function getPlayinfo(ext) {
             if (!deviceMatch) throw new Error('找不到 device')
             const device = deviceMatch[1]
 
-            // 提取完整性檢查 JS：marker 後到 </script>（對齊官方 plugin 做法）
+            // 提取完整性檢查 JS：marker 後到 </script>
             let integrityJs = ''
             if (pageHtml.includes('/*-- 浏览器完整性检查 --*/')) {
                 integrityJs = pageHtml.split('/*-- 浏览器完整性检查 --*/')[1].split('</script>')[0]
@@ -658,7 +777,7 @@ async function getPlayinfo(ext) {
         if (!videoJson.quality || videoJson.quality.length === 0) throw new Error('quality 列表為空')
         const idx = videoJson.defaultQuality < videoJson.quality.length ? videoJson.defaultQuality : 0
         const playUrl = videoJson.quality[idx].url
-        console.log(`playUrl: ${playUrl}`)
+        $print(`playUrl: ${playUrl}`)
 
         return jsonify({
             urls: [playUrl],
@@ -669,12 +788,12 @@ async function getPlayinfo(ext) {
             },
         })
     } catch (error) {
-        console.log('getPlayinfo error: ' + error)
+        $print('getPlayinfo error: ' + error)
         return jsonify({ urls: [] })
     }
 }
 
-// 動態取得站方 RC4 key（對齊 plugin 的多源 fallback，含快取）
+// 動態取得 RC4 key
 let _cachedDecryptKey = null
 async function getDecryptKey() {
     if (_cachedDecryptKey) return _cachedDecryptKey
