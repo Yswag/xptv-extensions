@@ -2,13 +2,14 @@ const CryptoJS = createCryptoJS()
 const cheerio = createCheerio()
 
 const headers = {
-    'User-Agent': 'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36',
+    'User-Agent':
+        'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36',
 }
 
 let appConfig = {
-    ver: 1,
+    ver: 20260902,
     title: '燒火電影',
-    site: 'https://saohuo.tv',
+    site: 'https://shdy2.com',
     tabs: [
         {
             name: '電影',
@@ -35,29 +36,37 @@ async function getConfig() {
     return jsonify(appConfig)
 }
 
+function toHref(href) {
+    if (!href) return href
+    if (/^https?:\/\//.test(href)) return href
+    return `${appConfig.site}${href.startsWith('/') ? '' : '/'}${href}`
+}
+
 async function getCards(ext) {
     ext = argsify(ext)
     let cards = []
     let { id, page = 1 } = ext
+    if (id == null) return jsonify({ list: cards })
     const url = `${appConfig.site}/list/${id}-${page}.html`
 
     const { data } = await $fetch.get(url, {
         headers: headers,
     })
+    if (!data) return jsonify({ list: cards })
 
-    let elems = $html.elements(data, 'ul.v_list div.v_img')
-    elems.forEach((element) => {
-        const href = $html.attr(element, 'a', 'href')
-        const title = $html.attr(element, 'a', 'title')
-        const cover = $html.attr(element, 'img', 'data-original')
-        const subTitle = $html.text(element, '.v_note')
+    const $ = cheerio.load(data)
+    $('ul.v_list div.v_img').each((_, element) => {
+        const href = $(element).find('a').attr('href')
+        const title = $(element).find('a').attr('title')
+        const cover = $(element).find('img').attr('data-original') || $(element).find('img').attr('src')
+        const subTitle = $(element).find('.v_note').text()
         cards.push({
             vod_id: href,
             vod_name: title,
             vod_pic: cover,
             vod_remarks: subTitle,
             ext: {
-                url: `${appConfig.site}${href}`,
+                url: toHref(href),
             },
         })
     })
@@ -71,10 +80,12 @@ async function getTracks(ext) {
     ext = argsify(ext)
     let list = []
     let url = ext.url
+    if (!url) return jsonify({ list })
 
     const { data } = await $fetch.get(url, {
         headers: headers,
     })
+    if (!data) return jsonify({ list })
 
     const $ = cheerio.load(data)
 
@@ -84,7 +95,7 @@ async function getTracks(ext) {
     })
 
     $('#play_link li').each((i, e) => {
-        const from = play_from[i]
+        const from = play_from[i] || play_from[0] || '線路'
         const eps = $(e).find('a')
         let temp = []
         eps.each((_, e) => {
@@ -94,13 +105,15 @@ async function getTracks(ext) {
                 name: `${name}`,
                 pan: '',
                 ext: {
-                    url: `${appConfig.site}${href}`,
+                    url: toHref(href),
                 },
             })
         })
-        temp.sort((a, b) => {
-            return a.name.split('-')[1] - b.name.split('-')[1]
-        })
+        const num = (s) => {
+            const m = String(s).match(/\d+/)
+            return m ? parseInt(m[0], 10) : 0
+        }
+        temp.sort((a, b) => num(a.name) - num(b.name))
         list.push({
             title: from,
             tracks: temp,
@@ -114,150 +127,116 @@ async function getTracks(ext) {
 
 async function getPlayinfo(ext) {
     ext = argsify(ext)
-    const url = ext.url
+    try {
+        const url = ext.url
+        if (!url) return jsonify({ urls: [] })
 
-    const { data } = await $fetch.get(url, {
-        headers: headers,
-    })
-
-    if (data) {
-        const $ = cheerio.load(data)
-        const iframeUrl = $('iframe').attr('src')
-        const apiUrl = iframeUrl.match(/^(https?:\/\/[^\/]+)/)[1] + '/api.php'
-
-        const resp = await $fetch.get(iframeUrl, {
+        const { data } = await $fetch.get(url, {
             headers: headers,
         })
-        if (resp.data) {
-            const $ = cheerio.load(resp.data)
-            const script = $('body script').text()
-            const url = script.match(/var url = "(.*)"/)[1]
-            const t = script.match(/var t = "(.*)"/)[1]
-            const keyStr = script.match(/var key = (.*?);/)[1]
-            const act = script.match(/var act = "(.*?)";/)[1]
-            const play = script.match(/var play = "(.*?)";/)[1]
+        if (!data) return jsonify({ urls: [] })
 
-            let func = ''
-            const specifiedContent = 'function ' + keyStr.split('(')[0]
-            const regex = new RegExp(`^.*${specifiedContent}.*$`, 'gm')
-            func = script.match(regex)[0].replace('atob', 'base64Decode')
-            const key = eval(func + keyStr)
+        const $ = cheerio.load(data)
+        let iframeSrc = $('iframe').attr('src')
+        if (!iframeSrc) return jsonify({ urls: [] })
+        iframeSrc = toHref(iframeSrc)
 
-            const params = {
-                url: url,
-                t: t,
-                key: key,
-                act: act,
-                play: play,
-            }
+        const cipher = (iframeSrc.match(/[?&]url=([0-9A-Fa-f]+)/) || [])[1]
+        if (!cipher) return jsonify({ urls: [] })
 
-            const presp = await $fetch.post(apiUrl, params, {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'User-Agent': headers['User-Agent'],
-                    Referer: iframeUrl,
-                },
-            })
+        const apiOrigin = (iframeSrc.match(/^(https?:\/\/[^\/]+)/) || [])[1]
+        if (!apiOrigin) return jsonify({ urls: [] })
 
-            const result = JSON.parse(presp.data)
+        const pResp = await $fetch.get(iframeSrc, {
+            headers: headers,
+        })
+        if (!pResp || !pResp.data) return jsonify({ urls: [] })
 
-            let playUrl = /http/.test(result.url) ? result.url : iframeUrl.match(/^(https?:\/\/[^\/]+)/)[1] + result.url
-            return jsonify({ urls: [playUrl] })
+        const $p = cheerio.load(pResp.data)
+        const script = $p('script')
+            .map((_, e) => $(e).text())
+            .get()
+            .join('\n')
+        const bm = script.match(/__HHJX_BOOTSTRAP__\s*=\s*(\{[^;]*\})/)
+        if (!bm) return jsonify({ urls: [] })
+        let boot = {}
+        try {
+            boot = JSON.parse(bm[1])
+        } catch (e) {
+            boot = {}
         }
-    }
+
+        const bootUrl = boot.url || cipher
+        const bootT = boot.t
+        const bootKey = boot.key
+        if (!bootKey || bootT == null) return jsonify({ urls: [] })
+
+        const parseBody = JSON.stringify({
+            url: bootUrl,
+            t: bootT,
+            key: bootKey,
+            client_fallback: false,
+        })
+
+        const presp = await $fetch.post(apiOrigin + '/api/parse', parseBody, {
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': headers['User-Agent'],
+                Referer: iframeSrc,
+            },
+        })
+        let res = {}
+        try {
+            res = JSON.parse(presp.data)
+        } catch (e) {
+            res = {}
+        }
+
+        let playUrl = res.url
+        if (!playUrl) return jsonify({ urls: [] })
+        if (playUrl.startsWith('http://')) playUrl = playUrl.replace('http://', 'https://')
+
+        return jsonify({
+            urls: [playUrl],
+            headers: [{ 'User-Agent': headers['User-Agent'], Referer: iframeSrc }],
+        })
+    } catch (e) {}
+
+    return jsonify({ urls: [] })
 }
 
 async function search(ext) {
     ext = argsify(ext)
     let cards = []
-    const ocrApi = 'https://api.nn.ci/ocr/b64/json'
-    let cookie = 'PHPSESSID=' + generatePHPSESSID()
+    try {
+        const keyword = (ext.text != null ? ext.text : ext.wd) || ''
+        if (!keyword) return jsonify({ list: cards })
 
-    let text = encodeURIComponent(ext.text)
-    let page = ext.page || 1
-    if (page > 1) {
-        return jsonify({
-            list: cards,
+        const text = encodeURIComponent(keyword)
+        const url = `${appConfig.site}/s----------.html?wd=${text}`
+
+        const { data } = await $fetch.get(url, {
+            headers: headers,
         })
-    }
+        if (!data) return jsonify({ list: cards })
 
-    let validate = appConfig.site + '/include/vdimgck.php'
-    let url = appConfig.site + '/search.php?scheckAC=check&page=&searchtype=&order=&tid=&area=&year=&letter=&yuyan=&state=&money=&ver=&jq='
-
-    let img = await $fetch.download(validate, {
-        headers: {
-            'User-Agent': headers['User-Agent'],
-            cookie: cookie,
-        },
-    })
-
-    function binaryStringToBase64(binaryString) {
-        const byteArray = []
-        for (let i = 0; i < binaryString.length; i += 8) {
-            const byte = binaryString.slice(i, i + 8)
-            byteArray.push(parseInt(byte, 2)) // convert 8 bits to a byte
-        }
-
-        const uint8Array = new Uint8Array(byteArray)
-        const wordArray = CryptoJS.lib.WordArray.create(uint8Array)
-        return CryptoJS.enc.Base64.stringify(wordArray)
-    }
-
-    let b64 = binaryStringToBase64(img.data)
-
-    let ocrRes = await $fetch.post(ocrApi, b64, {
-        headers: {
-            'User-Agent': headers['User-Agent'],
-            cookie: cookie,
-        },
-    })
-    let vd = argsify(ocrRes.data).result
-
-    let searchRes = await $fetch.post(url, `validate=${vd.toUpperCase()}&searchword=${text}`, {
-        headers: {
-            'user-agent': headers['User-Agent'],
-            cookie: cookie,
-            'content-type': 'application/x-www-form-urlencoded',
-        },
-    })
-    let html = searchRes.data
-
-    const $ = cheerio.load(html)
-
-    $('ul.v_list div.v_img').each((_, element) => {
-        const href = $(element).find('a').attr('href')
-        const title = $(element).find('a').attr('title')
-        const cover = $(element).find('img').attr('data-original')
-        const subTitle = $(element).find('.v_note').text()
-        cards.push({
-            vod_id: href,
-            vod_name: title,
-            vod_pic: cover,
-            vod_remarks: subTitle,
-            ext: {
-                url: `${appConfig.site}${href}`,
-            },
+        const $ = cheerio.load(data)
+        $('ul.v_list div.v_img').each((_, element) => {
+            const href = $(element).find('a').attr('href')
+            const title = $(element).find('a').attr('title')
+            const cover = $(element).find('img').attr('data-original') || $(element).find('img').attr('src')
+            const subTitle = $(element).find('.v_note').text()
+            cards.push({
+                vod_id: href,
+                vod_name: title,
+                vod_pic: cover,
+                vod_remarks: subTitle,
+                ext: {
+                    url: toHref(href),
+                },
+            })
         })
-    })
+    } catch (e) {}
 
-    return jsonify({
-        list: cards,
-    })
-}
-
-function generatePHPSESSID() {
-    const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    const length = 26
-    let sessionId = ''
-
-    for (let i = 0; i < length; i++) {
-        const randomIndex = Math.floor(Math.random() * characters.length)
-        sessionId += characters[randomIndex]
-    }
-
-    return sessionId
-}
-
-function base64Decode(text) {
-    return CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(text))
+    return jsonify({ list: cards })
 }
