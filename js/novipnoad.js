@@ -3,12 +3,15 @@ const cheerio = createCheerio()
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/604.1.14 (KHTML, like Gecko)'
 
 const CHROME_UA =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0'
 
 // 站方 RC4 解密 key 的最後已知值
 const DEFAULT_DECRYPT_KEY = 'ce974576'
 
-function sleep(ms) {}
+function sleep(ms) {
+    const end = Date.now() + ms
+    while (Date.now() < end) {}
+}
 
 // https://github.com/NanoCat-Me/utils/blob/main/URL.mjs
 class URL {
@@ -124,7 +127,7 @@ function _btoa(str) {
 }
 
 let appConfig = {
-    ver: 20251119,
+    ver: 20260902,
     title: 'NO視頻',
     site: 'https://www.novipnoad.net',
 }
@@ -222,7 +225,6 @@ async function getCards(ext) {
 
     const $ = cheerio.load(data)
     $('.video-listing-content .video-item').each((_, element) => {
-        // 直接取卡片真實連結（不同分類路徑不同：/movie/、/anime/、/tv/...）
         const link = $(element).find('.item-thumbnail a').attr('href') || $(element).find('h3 a').attr('href')
         const id = $(element).find('h3 a').attr('rel') || (link ? link.match(/\/(\d+)\.html/)?.[1] : null)
         const title = $(element).find('h3 a').attr('title')
@@ -338,7 +340,6 @@ async function getPlayinfo(ext) {
     try {
         if (!vid || !pkey || !ref) throw new Error('缺少 vid/pkey/ref')
 
-        // RC4 解密 key
         const rc4Key = await getDecryptKey()
 
         function setGlobal(name, value) {
@@ -368,36 +369,39 @@ async function getPlayinfo(ext) {
             let capturedCkey = null
 
             // Storage 類：sessionStorage instanceof Storage 須成立，
-            // 且 Storage.prototype.setItem.call({},...) 須拋 TypeError（NATIVE 檢查）
+            // 方法用「方法簡寫」保證無 prototype、new 拋 TypeError、
+            // 且 call({},...) 拋 TypeError（NATIVE 檢查）
             function StoragePolyfill() {}
-            StoragePolyfill.prototype.setItem = function setItem(key, value) {
-                if (!(this instanceof StoragePolyfill)) {
-                    throw new TypeError("Failed to execute 'setItem' on 'Storage': illegal invocation")
-                }
-                storage[key] = value
-                if (key === 'vkey') {
-                    try {
-                        capturedData = JSON.parse(value)
-                    } catch (e) {
-                        capturedData = value
+            Object.assign(StoragePolyfill.prototype, {
+                setItem(key, value) {
+                    if (!(this instanceof StoragePolyfill)) {
+                        throw new TypeError("Failed to execute 'setItem' on 'Storage': illegal invocation")
                     }
-                }
-            }
-            StoragePolyfill.prototype.getItem = function getItem(key) {
-                if (!(this instanceof StoragePolyfill)) {
-                    throw new TypeError("Failed to execute 'getItem' on 'Storage': illegal invocation")
-                }
-                return storage[key] || null
-            }
-            StoragePolyfill.prototype.removeItem = function removeItem(key) {
-                if (!(this instanceof StoragePolyfill)) {
-                    throw new TypeError("Failed to execute 'removeItem' on 'Storage': illegal invocation")
-                }
-                delete storage[key]
-            }
-            StoragePolyfill.prototype.clear = function clear() {
-                Object.keys(storage).forEach((k) => delete storage[k])
-            }
+                    storage[key] = value
+                    if (key === 'vkey') {
+                        try {
+                            capturedData = JSON.parse(value)
+                        } catch (e) {
+                            capturedData = value
+                        }
+                    }
+                },
+                getItem(key) {
+                    if (!(this instanceof StoragePolyfill)) {
+                        throw new TypeError("Failed to execute 'getItem' on 'Storage': illegal invocation")
+                    }
+                    return storage[key] || null
+                },
+                removeItem(key) {
+                    if (!(this instanceof StoragePolyfill)) {
+                        throw new TypeError("Failed to execute 'removeItem' on 'Storage': illegal invocation")
+                    }
+                    delete storage[key]
+                },
+                clear() {
+                    Object.keys(storage).forEach((k) => delete storage[k])
+                },
+            })
             const sessionStorageMock = new StoragePolyfill()
 
             // 檢查變體要求 String(sessionStorage) === '[object Storage]'
@@ -415,10 +419,18 @@ async function getPlayinfo(ext) {
             //   call 自身含 [native code]）
             const observeFn = function observe() {}
             const _origFTS = Function.prototype.toString
+            // 需要回傳 [native code] 的原生方法集合（不污染普通函數）
+            const _nativeLike = new Set([observeFn])
+            // Storage 的方法也被探測為「原生」（noNew + noProto + isNative）
+            for (const k of ['setItem', 'getItem', 'removeItem', 'clear']) {
+                try {
+                    _nativeLike.add(StoragePolyfill.prototype[k])
+                } catch (e) {}
+            }
             const _ftsHost = {
                 toString() {
                     if (this === _ftsHost.toString) return 'function toString() { [native code] }'
-                    if (this === observeFn) return 'function observe() { [native code] }'
+                    if (_nativeLike.has(this)) return 'function observe() { [native code] }'
                     return _origFTS.call(this)
                 },
             }
@@ -439,6 +451,7 @@ async function getPlayinfo(ext) {
                 }
                 return child
             }
+            _nativeLike.add(NodePolyfill.prototype.appendChild)
             function ElementPolyfill() {}
             ElementPolyfill.prototype = Object.create(NodePolyfill.prototype)
             function FileReaderPolyfill() {}
@@ -463,8 +476,8 @@ async function getPlayinfo(ext) {
 
             setGlobal('window', globalThis)
             setGlobal('self', globalThis)
-            //   if (window.top !== window.self) 才寫入 vkey，
-            //   top 必須與 self 是不同物件 ★
+            //   站方邏輯為 if (window.top !== window.self) 才寫入 vkey，
+            //   top 必須與 self 是不同物件
             setGlobal('top', {})
 
             const docMock = {
@@ -480,6 +493,7 @@ async function getPlayinfo(ext) {
                     },
                 },
                 documentElement: {
+                    style: {},
                     appendChild: function (el) {
                         return el
                     },
@@ -487,14 +501,96 @@ async function getPlayinfo(ext) {
                         return el
                     },
                 },
-                head: {},
+                head: {
+                    style: {},
+                    appendChild: function (el) {
+                        return el
+                    },
+                    removeChild: function (el) {
+                        return el
+                    },
+                },
                 cookie: '',
                 referrer: appConfig.site + '/',
                 visibilityState: 'visible',
                 hidden: false,
                 // PROTO 檢查：nodeType===9、instanceof HTMLDocument、[object HTMLDocument]
                 nodeType: 9,
-                // LAYOUT 檢查：div 的 cssText + offsetWidth/offsetHeight
+                // CSS style 解析：cssText 設定的 kebab-case 轉 camelCase 可讀取
+                createStyle: function () {
+                    const self = {}
+                    const props = {}
+                    const getters = {
+                        // 支援常見的 kebab → camel 映射
+                        fontSize: 'font-size',
+                        fontFamily: 'font-family',
+                        fontWeight: 'font-weight',
+                        marginTop: 'margin-top',
+                        marginBottom: 'margin-bottom',
+                        marginLeft: 'margin-left',
+                        marginRight: 'margin-right',
+                        paddingTop: 'padding-top',
+                        paddingBottom: 'padding-bottom',
+                        paddingLeft: 'padding-left',
+                        paddingRight: 'padding-right',
+                        display: 'display',
+                        position: 'position',
+                        width: 'width',
+                        height: 'height',
+                        maxWidth: 'max-width',
+                        maxHeight: 'max-height',
+                        visibility: 'visibility',
+                        boxSizing: 'box-sizing',
+                        flex: 'flex',
+                        flexGrow: 'flex-grow',
+                        flexShrink: 'flex-shrink',
+                        flexBasis: 'flex-basis',
+                        border: 'border',
+                    }
+                    const style = new Proxy(
+                        {},
+                        {
+                            set(target, key, value) {
+                                if (key === 'cssText') {
+                                    // 解析 css 宣告
+                                    const decls = String(value).split(';')
+                                    for (const decl of decls) {
+                                        const idx = decl.indexOf(':')
+                                        if (idx === -1) continue
+                                        const rawProp = decl.slice(0, idx).trim()
+                                        const rawVal = decl.slice(idx + 1).trim()
+                                        if (!rawProp) continue
+                                        // 存原始屬性（kebab）
+                                        props[rawProp] = rawVal
+                                        // 轉 camel 並存
+                                        const camel = rawProp.replace(/-([a-z])/g, (m, c) => c.toUpperCase())
+                                        target[camel] = rawVal
+                                    }
+                                    target.cssText = String(value)
+                                    return true
+                                }
+                                target[key] = value
+                                return true
+                            },
+                            get(target, key) {
+                                if (key in target) return target[key]
+                                return undefined
+                            },
+                            has(target, key) {
+                                return key in target
+                            },
+                        },
+                    )
+                    Object.defineProperty(style, 'cssText', {
+                        get() {
+                            return props.cssText || ''
+                        },
+                        set(v) {
+                            props.cssText = String(v)
+                        },
+                    })
+                    return { style: style, props: props, getters: getters }
+                },
                 createElement: function (tag) {
                     if (tag === 'canvas') {
                         return {
@@ -503,6 +599,7 @@ async function getPlayinfo(ext) {
                             style: {},
                             getContext: function (type) {
                                 if (type === '2d') {
+                                    let gradientWait = 0
                                     return {
                                         measureText: (text) => ({ width: text.length * 10 }),
                                         fillText: () => {},
@@ -513,12 +610,33 @@ async function getPlayinfo(ext) {
                                         arc: () => {},
                                         fill: () => {},
                                         // 新變體檢查：getImageData 須回傳完整像素資料
-                                        // 且 alpha 總和 > 20
+                                        // 且 alpha 總和 > 20。GRADIENT 檢查在 (w=h=1) 時
+                                        // 須回傳紅藍混合色（R>70,B>70,G<40,A=255）
                                         getImageData: function (x, y, w, h) {
-                                            const size = Math.max(w || 1, 1) * Math.max(h || 1, 1) * 4
+                                            const width = Math.max(w || 1, 1)
+                                            const height = Math.max(h || 1, 1)
+                                            if (width === 1 && height === 1) {
+                                                // GRADIENT 探測：填充 linear-gradient 後取中點像素
+                                                return {
+                                                    data: new Uint8ClampedArray([128, 0, 127, 255]),
+                                                    width: 1,
+                                                    height: 1,
+                                                }
+                                            }
+                                            const size = width * height * 4
                                             const data = new Uint8ClampedArray(size)
                                             for (let i = 3; i < size; i += 4) data[i] = 255
-                                            return { data: data, width: w, height: h }
+                                            return { data: data, width: width, height: height }
+                                        },
+                                        createLinearGradient() {
+                                            return {
+                                                addColorStop() {},
+                                            }
+                                        },
+                                        createRadialGradient() {
+                                            return {
+                                                addColorStop() {},
+                                            }
                                         },
                                         putImageData: () => {},
                                         font: '',
@@ -542,19 +660,136 @@ async function getPlayinfo(ext) {
                     if (tag === 'script') {
                         return { src: '', type: '', async: false, onload: null, onerror: null }
                     }
-                    // 通用元素（含 div）：LAYOUT 檢查用
-                    return {
-                        style: {
-                            set cssText(v) {},
-                            get cssText() {
-                                return ''
+                    if (tag === 'style') {
+                        // CSSRULES 檢查：style.sheet.cssRules.length > 0
+                        const el = {
+                            textContent: '',
+                            sheet: {
+                                cssRules: [{ cssText: '.v7_t{width:168px;}' }],
+                                insertRule() {},
                             },
+                            style: {},
+                        }
+                        return el
+                    }
+                    // 通用元素（含 div）：LAYOUT 檢查用。
+                    // 帶 style 物件（cssText 解析 + camelCase），offsetWidth 依 css 提供。
+                    const styleObj = {}
+                    const props = {}
+                    Object.defineProperty(styleObj, 'cssText', {
+                        get() {
+                            return props.cssText || ''
                         },
-                        offsetWidth: 120,
-                        offsetHeight: 40,
+                        set(v) {
+                            props.cssText = String(v)
+                            // kebab → camel
+                            const all = String(v).split(';')
+                            for (const decl of all) {
+                                const idx = decl.indexOf(':')
+                                if (idx === -1) continue
+                                const rawProp = decl.slice(0, idx).trim()
+                                const rawVal = decl.slice(idx + 1).trim()
+                                if (rawProp) {
+                                    const camel = rawProp.replace(/-([a-z])/g, (m, c) => c.toUpperCase())
+                                    styleObj[camel] = rawVal
+                                    props[rawProp] = rawVal
+                                }
+                            }
+                        },
+                    })
+                    const element = {
+                        style: styleObj,
+                        children: [],
+                        parentNode: null,
+                        _computedWidth: null,
                         getAttribute: () => null,
                         setAttribute: () => {},
+                        appendChild: function (child) {
+                            element.children.push(child)
+                            child.parentNode = element
+                            // 若容器是 flex，立即計算子元素佈局寬（Chrome flex 算法近似）
+                            element._layoutChildren()
+                            return child
+                        },
+                        removeChild: function (child) {
+                            const i = element.children.indexOf(child)
+                            if (i > -1) element.children.splice(i, 1)
+                            child.parentNode = null
+                            return child
+                        },
                     }
+                    // Chrome flex 規範算法：display:flex，positive free 依 grow 分配，
+                    // 逐項 clamp 到 max-width 並剩餘空間重算（frozen 項固定）
+                    element._layoutChildren = function () {
+                        const parentW = parseFloat(styleObj.width)
+                        if (styleObj.display !== 'flex' || !parentW || !element.children.length) return
+                        const items = element.children.map((c) => {
+                            const cs = c.style || {}
+                            const flex = String(cs.flex || '').split(' ')
+                            return {
+                                el: c,
+                                grow: parseFloat(flex[0]) || parseFloat(cs.flexGrow) || 0,
+                                basis: parseFloat(flex[2] || cs.flexBasis || 0) || 0,
+                                maxW: parseFloat(cs.maxWidth) || Infinity,
+                                frozen: false,
+                                computed: 0,
+                            }
+                        })
+                        // 初始 hypothetical（basis 依 max-width clamp）
+                        for (const it of items) {
+                            it.computed = Math.min(it.basis, it.maxW)
+                        }
+                        let free = parentW - items.reduce((s, it) => s + it.computed, 0)
+                        // positive free：逐輪分配，超限即 frozen
+                        for (let pass = 0; pass < items.length + 1; pass++) {
+                            if (free <= 0) break
+                            const flexTotal = items.reduce((s, it) => s + (it.frozen ? 0 : it.grow), 0)
+                            if (flexTotal <= 0) break
+                            let allocated = 0
+                            for (const it of items) {
+                                if (it.frozen) continue
+                                const share = free * (it.grow / flexTotal)
+                                const target = it.computed + share
+                                if (target > it.maxW) {
+                                    it.computed = it.maxW
+                                    it.frozen = true
+                                } else {
+                                    it.computed = target
+                                    allocated += share
+                                }
+                            }
+                            if (allocated === 0) break
+                            free = parentW - items.reduce((s, it) => s + it.computed, 0)
+                        }
+                        // negative free（簡化：正常 shrink）
+                        if (free < 0) {
+                            const shrinkTotal = items.reduce((s, it) => s + it.basis, 0)
+                            for (const it of items) {
+                                if (shrinkTotal > 0) {
+                                    it.computed = it.basis + free * (it.basis / shrinkTotal)
+                                    it.computed = Math.max(it.computed, 0)
+                                }
+                            }
+                        }
+                        for (const it of items) it.el._computedWidth = it.computed
+                    }
+                    // offsetWidth：LAYOUT（120×40）/ FLEX 佈局 / 顯式 width / max-width
+                    Object.defineProperty(element, 'offsetWidth', {
+                        get() {
+                            if (element._computedWidth != null) return Math.round(element._computedWidth)
+                            const w = styleObj.width || styleObj.maxWidth
+                            if (styleObj.display === 'flex') {
+                                return parseFloat(styleObj.width) || 369
+                            }
+                            return parseFloat(w) || 120
+                        },
+                    })
+                    Object.defineProperty(element, 'offsetHeight', {
+                        get() {
+                            return parseFloat(styleObj.height) || 40
+                        },
+                    })
+                    return element
                 },
                 // 新變體透過 play_iframe 的 postMessage 傳遞 ckey
                 getElementById: function (id) {
@@ -672,7 +907,7 @@ async function getPlayinfo(ext) {
             }
         }
 
-        async function extractVkeyJS(pageUrl, debug = false, maxRetries = 8) {
+        async function extractVkeyJS(pageUrl, debug = false, maxRetries = 4) {
             for (let attempt = 1; attempt <= maxRetries; attempt++) {
                 if (attempt > 1) sleep(800)
 
@@ -701,7 +936,7 @@ async function getPlayinfo(ext) {
             if (!deviceMatch) throw new Error('找不到 device')
             const device = deviceMatch[1]
 
-            // 提取完整性檢查 JS：marker 後到 </script>
+            // 提取完整性檢查 JS：marker 後到 </script>（對齊官方 plugin 做法）
             let integrityJs = ''
             if (pageHtml.includes('/*-- 浏览器完整性检查 --*/')) {
                 integrityJs = pageHtml.split('/*-- 浏览器完整性检查 --*/')[1].split('</script>')[0]
@@ -734,7 +969,7 @@ async function getPlayinfo(ext) {
         }
 
         const playerUrl = `https://player.novipnoad.net/v1/?url=${vid}&pkey=${pkey}&ref=${encodeURIComponent(ref)}`
-        const result = await extractVkeyJS(playerUrl, false, 4)
+        const result = await extractVkeyJS(playerUrl, false, 8)
         if (!result) throw new Error('vkey 提取失敗')
         const vkey = result.vkey
 
@@ -793,7 +1028,6 @@ async function getPlayinfo(ext) {
     }
 }
 
-// 動態取得 RC4 key
 let _cachedDecryptKey = null
 async function getDecryptKey() {
     if (_cachedDecryptKey) return _cachedDecryptKey
