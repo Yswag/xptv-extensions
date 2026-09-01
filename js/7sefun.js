@@ -1,5 +1,5 @@
-const cheerio = createCheerio()
 const CryptoJS = createCryptoJS()
+const cheerio = createCheerio()
 
 const UA =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0'
@@ -214,6 +214,7 @@ const playerConfig = {
 }
 
 async function getConfig() {
+    $utils.toastInfo('七色A線暫時失效，B線正常。')
     let config = appConfig
     return jsonify(config)
 }
@@ -222,8 +223,25 @@ async function getCards(ext) {
     ext = argsify(ext)
     let cards = []
     let { page = 1, id } = ext
+    const f = ext.filters || {}
 
-    const url = `${appConfig.site}/vodshow/${id}--time------${page}---.html`
+    // 站點篩選 URL 為 12 欄自訂模板：
+    //   vodshow/{id}-{area}-{order}-{type}-{lang}-{letter}-{}-{}-{page}-{}-{}-{year}.html
+    const enc = (s) => (s ? encodeURIComponent(s) : '')
+    const url = `${appConfig.site}/vodshow/${[
+        String(id),
+        enc(f.area),
+        enc(f.order || 'time'),
+        enc(f.type),
+        enc(f.lang),
+        enc(f.letter),
+        '',
+        '',
+        String(page),
+        '',
+        '',
+        enc(f.year),
+    ].join('-')}.html`
 
     const { data } = await $fetch.get(url, {
         headers: {
@@ -251,7 +269,54 @@ async function getCards(ext) {
 
     return jsonify({
         list: cards,
+        filter: parseFilter($),
     })
+}
+
+function parseFilter($) {
+    const groups = []
+    const keyMap = [
+        ['类型', 'type'],
+        ['地区', 'area'],
+        ['语言', 'lang'],
+        ['年代', 'year'],
+        ['字母', 'letter'],
+    ]
+    $('.filter-focus .filter-list').each((_, el) => {
+        const label = $(el).find('b').first().text()
+        let key = null
+        for (const [kw, k] of keyMap) {
+            if (label.includes(kw)) {
+                key = k
+                break
+            }
+        }
+        if (!key) return
+        const value = []
+        $(el)
+            .find('ul li a')
+            .each((_, a) => {
+                const text = $(a).text().trim()
+                value.push({ n: text || '全部', v: text === '全部' ? '' : text })
+            })
+        groups.push({ key, name: label.replace(/[：:]/g, '').trim(), value })
+    })
+    // 排序（order）選項位於 .view-filter，不在 .filter-list 內：time / hits / score
+    $('.view-filter').each((_, el) => {
+        const label = $(el).find('b').first().text()
+        if (!label.includes('排序')) return
+        const value = []
+        $(el)
+            .find('a.order')
+            .each((_, a) => {
+                const text = $(a).text().trim()
+                const body = ($(a).attr('href') || '').replace('/vodshow/', '').replace(/\.html$/, '')
+                const tok = body.split('-')[2]
+                value.push({ n: text, v: tok || '' })
+            })
+        groups.push({ key: 'order', name: label.replace(/[：:]/g, '').trim(), value })
+    })
+    return groups
 }
 
 async function getTracks(ext) {
