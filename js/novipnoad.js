@@ -127,7 +127,7 @@ function _btoa(str) {
 }
 
 let appConfig = {
-    ver: 20260902,
+    ver: 20260904,
     title: 'NO視頻',
     site: 'https://www.novipnoad.net',
 }
@@ -455,6 +455,18 @@ async function getPlayinfo(ext) {
             function ElementPolyfill() {}
             ElementPolyfill.prototype = Object.create(NodePolyfill.prototype)
             function FileReaderPolyfill() {}
+            // NATIVE 檢查：EventTarget.prototype.addEventListener 須存在、
+            // new 拋 TypeError（方法簡寫無 prototype，不可構造）
+            function EventTargetPolyfill() {}
+            EventTargetPolyfill.prototype.addEventListener = {
+                addEventListener() {
+                    if (!(this instanceof EventTargetPolyfill)) {
+                        throw new TypeError(
+                            "Failed to execute 'addEventListener' on 'EventTarget': illegal invocation",
+                        )
+                    }
+                },
+            }.addEventListener
             function HTMLDocumentPolyfill() {}
             function WindowPolyfill() {}
             // window instanceof Window 檢查（Symbol.hasInstance 由 JSC 支援）
@@ -470,6 +482,7 @@ async function getPlayinfo(ext) {
             setGlobal('MutationObserver', MutationObserverPolyfill)
             setGlobal('Node', NodePolyfill)
             setGlobal('Element', ElementPolyfill)
+            setGlobal('EventTarget', EventTargetPolyfill)
             setGlobal('FileReader', FileReaderPolyfill)
             setGlobal('HTMLDocument', HTMLDocumentPolyfill)
             setGlobal('Window', WindowPolyfill)
@@ -593,83 +606,176 @@ async function getPlayinfo(ext) {
                 },
                 createElement: function (tag) {
                     if (tag === 'canvas') {
-                        return {
+                        // GRADIENT 雙點探測：站方以 createLinearGradient 灌紅藍漸變後，
+                        // 在左右兩點採樣（左偏紅 R>150，右偏藍 B>150），須按 x 插值回應
+                        const canvasEl = {
                             width: 300,
                             height: 150,
                             style: {},
-                            getContext: function (type) {
-                                if (type === '2d') {
-                                    let gradientWait = 0
-                                    return {
-                                        measureText: (text) => ({ width: text.length * 10 }),
-                                        fillText: () => {},
-                                        strokeText: () => {},
-                                        fillRect: () => {},
-                                        clearRect: () => {},
-                                        beginPath: () => {},
-                                        arc: () => {},
-                                        fill: () => {},
-                                        // 新變體檢查：getImageData 須回傳完整像素資料
-                                        // 且 alpha 總和 > 20。GRADIENT 檢查在 (w=h=1) 時
-                                        // 須回傳紅藍混合色（R>70,B>70,G<40,A=255）
-                                        getImageData: function (x, y, w, h) {
-                                            const width = Math.max(w || 1, 1)
-                                            const height = Math.max(h || 1, 1)
-                                            if (width === 1 && height === 1) {
-                                                // GRADIENT 探測：填充 linear-gradient 後取中點像素
-                                                return {
-                                                    data: new Uint8ClampedArray([128, 0, 127, 255]),
-                                                    width: 1,
-                                                    height: 1,
-                                                }
-                                            }
-                                            const size = width * height * 4
-                                            const data = new Uint8ClampedArray(size)
-                                            for (let i = 3; i < size; i += 4) data[i] = 255
-                                            return { data: data, width: width, height: height }
-                                        },
-                                        createLinearGradient() {
-                                            return {
-                                                addColorStop() {},
-                                            }
-                                        },
-                                        createRadialGradient() {
-                                            return {
-                                                addColorStop() {},
-                                            }
-                                        },
-                                        putImageData: () => {},
-                                        font: '',
-                                        fillStyle: '',
-                                        textBaseline: '',
-                                    }
-                                }
-                                if (type === 'webgl' || type === 'experimental-webgl') {
-                                    return {
-                                        getParameter: () => 'WebGL Mock',
-                                        getExtension: () => null,
-                                        getSupportedExtensions: () => [],
-                                    }
-                                }
-                                return null
-                            },
-                            toDataURL: () =>
-                                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
                         }
+                        canvasEl.getContext = function (type) {
+                            if (type === '2d') {
+                                const ctx = {
+                                    _grad: null,
+                                    _gradFilled: false,
+                                    measureText: (text) => ({ width: text.length * 10 }),
+                                    fillText: () => {},
+                                    strokeText: () => {},
+                                    clearRect: () => {},
+                                    beginPath: () => {},
+                                    arc: () => {},
+                                    fill: () => {},
+                                    putImageData: () => {},
+                                    font: '',
+                                    fillStyle: '',
+                                    textBaseline: '',
+                                }
+                                function _parseColor(c) {
+                                    c = String(c).trim().toLowerCase()
+                                    const names = {
+                                        red: [255, 0, 0],
+                                        blue: [0, 0, 255],
+                                        black: [0, 0, 0],
+                                        white: [255, 255, 255],
+                                        green: [0, 128, 0],
+                                        lime: [0, 255, 0],
+                                    }
+                                    if (names[c]) return names[c]
+                                    let m = c.match(/^#([0-9a-f]{6})$/)
+                                    if (m) {
+                                        const v = parseInt(m[1], 16)
+                                        return [(v >> 16) & 255, (v >> 8) & 255, v & 255]
+                                    }
+                                    m = c.match(/^#([0-9a-f]{3})$/)
+                                    if (m) {
+                                        return [
+                                            parseInt(m[1][0] + m[1][0], 16),
+                                            parseInt(m[1][1] + m[1][1], 16),
+                                            parseInt(m[1][2] + m[1][2], 16),
+                                        ]
+                                    }
+                                    m = c.match(/rgba?\(([^)]+)\)/)
+                                    if (m) {
+                                        const p = m[1].split(',').map((v) => parseFloat(v) || 0)
+                                        return [p[0], p[1], p[2]]
+                                    }
+                                    return [0, 0, 0]
+                                }
+                                function _sampleGrad(t) {
+                                    const stops = ctx._grad.stops.slice().sort((a, b) => a.off - b.off)
+                                    t = Math.max(0, Math.min(1, t))
+                                    let a = stops[0]
+                                    let b = stops[stops.length - 1]
+                                    for (let i = 0; i < stops.length - 1; i++) {
+                                        if (t >= stops[i].off && t <= stops[i + 1].off) {
+                                            a = stops[i]
+                                            b = stops[i + 1]
+                                            break
+                                        }
+                                    }
+                                    const span = b.off - a.off || 1
+                                    const k = (t - a.off) / span
+                                    return [
+                                        Math.round(a.r + (b.r - a.r) * k),
+                                        Math.round(a.g + (b.g - a.g) * k),
+                                        Math.round(a.b + (b.b - a.b) * k),
+                                    ]
+                                }
+                                ctx.fillRect = function () {
+                                    if (ctx.fillStyle && ctx.fillStyle.stops) ctx._gradFilled = true
+                                }
+                                // 新變體檢查：getImageData 須回傳完整像素資料
+                                // 且 alpha 總和 > 20。舊 GRADIENT 檢查（1x1 中點紅藍混合
+                                // R>70,B>70,G<40）由漸變插值自然滿足
+                                ctx.getImageData = function (x, y, w, h) {
+                                    const width = Math.max(w || 1, 1)
+                                    const height = Math.max(h || 1, 1)
+                                    const data = new Uint8ClampedArray(width * height * 4)
+                                    const useGrad =
+                                        ctx._gradFilled &&
+                                        ctx._grad &&
+                                        ctx._grad.stops.length > 0 &&
+                                        canvasEl.width > 1
+                                    for (let j = 0; j < height; j++) {
+                                        for (let i = 0; i < width; i++) {
+                                            const idx = (j * width + i) * 4
+                                            let r = 0
+                                            let g = 0
+                                            let b = 0
+                                            if (useGrad) {
+                                                const x0 = ctx._grad.x0 || 0
+                                                let x1 = ctx._grad.x1
+                                                if (!(x1 > x0)) x1 = canvasEl.width
+                                                const t = (x + i - x0) / (x1 - x0 || 1)
+                                                const c = _sampleGrad(t)
+                                                r = c[0]
+                                                g = c[1]
+                                                b = c[2]
+                                            } else if (width === 1 && height === 1) {
+                                                r = 128
+                                                g = 0
+                                                b = 127
+                                            }
+                                            data[idx] = r
+                                            data[idx + 1] = g
+                                            data[idx + 2] = b
+                                            data[idx + 3] = 255
+                                        }
+                                    }
+                                    return { data: data, width: width, height: height }
+                                }
+                                ctx.createLinearGradient = function (x0, y0, x1, y1) {
+                                    const grad = {
+                                        x0: x0,
+                                        x1: x1,
+                                        stops: [],
+                                        addColorStop: function (off, color) {
+                                            const c = _parseColor(color)
+                                            grad.stops.push({ off: off, r: c[0], g: c[1], b: c[2] })
+                                            ctx._grad = grad
+                                        },
+                                    }
+                                    return grad
+                                }
+                                ctx.createRadialGradient = function () {
+                                    return {
+                                        addColorStop() {},
+                                    }
+                                }
+                                return ctx
+                            }
+                            if (type === 'webgl' || type === 'experimental-webgl') {
+                                return {
+                                    getParameter: () => 'WebGL Mock',
+                                    getExtension: () => null,
+                                    getSupportedExtensions: () => [],
+                                }
+                            }
+                            return null
+                        }
+                        canvasEl.toDataURL = () =>
+                            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+                        return canvasEl
                     }
                     if (tag === 'script') {
                         return { src: '', type: '', async: false, onload: null, onerror: null }
                     }
                     if (tag === 'style') {
-                        // CSSRULES 檢查：style.sheet.cssRules.length > 0
+                        // CSSRULES 檢查：sheet.cssRules 須動態回顯 textContent
+                        // （站方隨機類名/寬度，如 .zenvuioa{width:218px}，寫死即失效）
                         const el = {
                             textContent: '',
-                            sheet: {
-                                cssRules: [{ cssText: '.v7_t{width:168px;}' }],
-                                insertRule() {},
-                            },
                             style: {},
                         }
+                        el.sheet = {
+                            insertRule() {},
+                        }
+                        Object.defineProperty(el.sheet, 'cssRules', {
+                            get() {
+                                if (el.textContent) return [{ cssText: el.textContent }]
+                                return [{ cssText: '.v7_t{width:168px;}' }]
+                            },
+                        })
                         return el
                     }
                     // 通用元素（含 div）：LAYOUT 檢查用。
@@ -773,14 +879,88 @@ async function getPlayinfo(ext) {
                         }
                         for (const it of items) it.el._computedWidth = it.computed
                     }
-                    // offsetWidth：LAYOUT（120×40）/ FLEX 佈局 / 顯式 width / max-width
+                    // 通用盒模型解析：支援 px / % / calc(% - px)，% 相對父 content 寬
+                    // （新變體 LAYOUT：452px border-box + 100% flex + calc(43% - 12px），數值隨機）
+                    function _padTotal(st) {
+                        const pad = st.padding || st.paddingLeft || ''
+                        if (!pad) {
+                            const t = parseFloat(st.paddingTop) || 0
+                            const l = parseFloat(st.paddingLeft) || 0
+                            const r = parseFloat(st.paddingRight) || 0
+                            if (t || l || r) return l + r
+                            return 0
+                        }
+                        const nums = String(pad)
+                            .split(' ')
+                            .map((v) => parseFloat(v) || 0)
+                        if (nums.length === 1) return nums[0] * 2
+                        if (nums.length === 2) return nums[1] * 2
+                        if (nums.length >= 4) return nums[1] + nums[3]
+                        return nums[0] * 2
+                    }
+                    function _resolveOffset(el, depth) {
+                        if (!el || !el.style) return 0
+                        if (depth > 10) return 0
+                        const st = el.style
+                        const raw = (st.width || '').trim()
+                        // 父 content 寬（遞迴）
+                        let parentContent = null
+                        if (el.parentNode && el.parentNode.style) {
+                            const p = el.parentNode
+                            const pRaw = (p.style.width || '').trim()
+                            if (pRaw) {
+                                const pOff = _resolveOffset(p, depth + 1)
+                                const pPad = _padTotal(p.style)
+                                parentContent =
+                                    p.style.boxSizing === 'border-box' ? pOff - pPad : pOff - pPad
+                                if (p.style.boxSizing !== 'border-box') {
+                                    // content-box：width 即 content
+                                    const m = pRaw.match(/^([\d.]+)px$/)
+                                    if (m) parentContent = parseFloat(m[1])
+                                    else parentContent = pOff - pPad
+                                }
+                            }
+                        }
+                        if (!raw) {
+                            // 無寬度：block 撐滿父 content，否則舊預設 120
+                            if (parentContent != null && parentContent > 0) return parentContent
+                            const mw = st.maxWidth || ''
+                            if (mw) return parseFloat(mw) || 120
+                            if (st.display === 'flex') return parentContent || 369
+                            return 120
+                        }
+                        let content = null
+                        let mPx = raw.match(/^([\d.]+)px$/)
+                        if (mPx) {
+                            const v = parseFloat(mPx[1])
+                            content = st.boxSizing === 'border-box' ? v - _padTotal(st) : v
+                            return st.boxSizing === 'border-box' ? v : v + _padTotal(st)
+                        }
+                        let mPct = raw.match(/^([\d.]+)%$/)
+                        if (mPct) {
+                            if (parentContent == null) return 369
+                            content = (parentContent * parseFloat(mPct[1])) / 100
+                            return st.boxSizing === 'border-box' ? content + _padTotal(st) : content
+                        }
+                        let mCalc = raw.match(/calc\(\s*([\d.]+)%\s*-\s*([\d.]+)px\s*\)/)
+                        if (mCalc && parentContent != null) {
+                            content = (parentContent * parseFloat(mCalc[1])) / 100 - parseFloat(mCalc[2])
+                            return st.boxSizing === 'border-box' ? content + _padTotal(st) : content
+                        }
+                        const f = parseFloat(raw)
+                        if (!isNaN(f)) return f
+                        return 120
+                    }
+                    // offsetWidth：LAYOUT（120×40）/ FLEX 佈局 / 通用盒模型 / max-width
                     Object.defineProperty(element, 'offsetWidth', {
                         get() {
                             if (element._computedWidth != null) return Math.round(element._computedWidth)
-                            const w = styleObj.width || styleObj.maxWidth
-                            if (styleObj.display === 'flex') {
-                                return parseFloat(styleObj.width) || 369
+                            if (styleObj.display === 'flex' && !styleObj.width) {
+                                return 369
                             }
+                            const v = _resolveOffset(element, 0)
+                            if (v) return Math.round(v)
+                            const w = styleObj.width || styleObj.maxWidth
                             return parseFloat(w) || 120
                         },
                     })
@@ -956,6 +1136,20 @@ async function getPlayinfo(ext) {
                 if (debug) $print(`[DEBUG] 執行錯誤（嘗試繼續）: ${evalErr.message}`)
             }
 
+            // 新變體 ckey 經 queueMicrotask/Promise.then 非同步 postMessage 投遞，
+            // busy-wait 會卡住 event loop 使其永不執行，須先 await 讓 microtask flush
+            try {
+                await Promise.resolve()
+            } catch (e) {}
+            try {
+                await new Promise(function (r) {
+                    try {
+                        setTimeout(r, 50)
+                    } catch (e2) {
+                        r()
+                    }
+                })
+            } catch (e) {}
             sleep(200)
             let vkey = getCapturedData()
             if (typeof vkey === 'string') {
