@@ -1,0 +1,6 @@
+#!name=Youtube PoToken
+#!desc=YouTube PoToken 產生器 (WebView)
+#!author=yang
+
+[Script]
+yt-pot = type=http-request, pattern=^http://ytpot\.token/token, engine=webview, script-path=https://raw.githubusercontent.com/Yswag/xptv-extensions/refs/heads/jstv/script/yt-pot.js, timeout=300
